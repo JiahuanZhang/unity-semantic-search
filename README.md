@@ -18,7 +18,7 @@
 ```json
 {
   "dependencies": {
-    "com.project2.semantic-search": "file:../../Terminal/Semantic Search"
+    "com.vectorz.semantic-search": "file:../../Terminal/Semantic Search"
   }
 }
 ```
@@ -28,7 +28,7 @@
 ```json
 {
   "dependencies": {
-    "com.project2.semantic-search": "https://your-repo-url.git?path=Semantic Search"
+    "com.vectorz.semantic-search": "https://your-repo-url.git?path=Semantic Search"
   }
 }
 ```
