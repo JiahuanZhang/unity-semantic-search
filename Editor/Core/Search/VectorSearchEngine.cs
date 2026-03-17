@@ -10,9 +10,9 @@ namespace SemanticSearch.Editor.Core.Search
     public class VectorSearchEngine
     {
         private readonly SemanticSearchDB _db;
-        private readonly QwenEmbeddingClient _embeddingClient;
+        private readonly EmbeddingClient _embeddingClient;
 
-        public VectorSearchEngine(SemanticSearchDB db, QwenEmbeddingClient embeddingClient)
+        public VectorSearchEngine(SemanticSearchDB db, EmbeddingClient embeddingClient)
         {
             _db = db;
             _embeddingClient = embeddingClient;

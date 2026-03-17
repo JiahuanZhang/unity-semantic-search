@@ -214,7 +214,7 @@ namespace SemanticSearch.Editor.UI
             if (_searchEngine == null)
             {
                 var http = new LLMHttpClient(config);
-                var embedding = new QwenEmbeddingClient(config, http);
+                var embedding = new EmbeddingClient(config, http);
                 _searchEngine = new VectorSearchEngine(_db, embedding);
             }
 

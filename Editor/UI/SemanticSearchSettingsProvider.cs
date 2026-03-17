@@ -1,9 +1,11 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEditor;
 using SemanticSearch.Editor.Core.Database;
+using SemanticSearch.Editor.Core.LLM;
 using SemanticSearch.Editor.Core.Pipeline;
 using SemanticSearch.Editor.Core.Watcher;
 
@@ -11,11 +13,7 @@ namespace SemanticSearch.Editor.UI
 {
     public class SemanticSearchSettingsProvider : SettingsProvider
     {
-        static readonly string[] VisionModels = { "qwen-vl-plus", "qwen-vl-max" };
-        static readonly string[] EmbeddingModels = { "text-embedding-v3", "text-embedding-v2" };
-
         SemanticSearchSettings _settings;
-        string _apiKey;
 
         bool _foldLLM = true;
         bool _foldWorkflow = true;
@@ -36,7 +34,6 @@ namespace SemanticSearch.Editor.UI
         public override void OnActivate(string searchContext, UnityEngine.UIElements.VisualElement rootElement)
         {
             _settings = SemanticSearchSettings.Load();
-            _apiKey = _settings.GetApiKey();
             RefreshCounts();
         }
 
@@ -67,28 +64,71 @@ namespace SemanticSearch.Editor.UI
 
             using (new EditorGUI.IndentLevelScope())
             {
-                EditorGUI.BeginChangeCheck();
+                DrawProviderSelector();
+                EditorGUILayout.Space(4);
+                DrawActiveProviderFields();
+            }
+        }
 
-                _apiKey = EditorGUILayout.PasswordField("API Key", _apiKey);
+        void DrawProviderSelector()
+        {
+            var providers = _settings.Providers;
+            var names = providers.Select(p => p.Name).ToArray();
 
-                int vlIdx = Array.IndexOf(VisionModels, _settings.VisionModel);
-                if (vlIdx < 0) vlIdx = 0;
-                vlIdx = EditorGUILayout.Popup("Vision Model", vlIdx, VisionModels);
-                _settings.VisionModel = VisionModels[vlIdx];
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginChangeCheck();
+            int newIdx = EditorGUILayout.Popup("Active Provider", _settings.ActiveProviderIndex, names);
+            if (EditorGUI.EndChangeCheck())
+            {
+                _settings.ActiveProviderIndex = newIdx;
+                _settings.Save();
+            }
 
-                int embIdx = Array.IndexOf(EmbeddingModels, _settings.EmbeddingModel);
-                if (embIdx < 0) embIdx = 0;
-                embIdx = EditorGUILayout.Popup("Embed Model", embIdx, EmbeddingModels);
-                _settings.EmbeddingModel = EmbeddingModels[embIdx];
+            if (GUILayout.Button("+", GUILayout.Width(24)))
+            {
+                providers.Add(new LLMProviderConfig { Name = $"Provider {providers.Count + 1}" });
+                _settings.ActiveProviderIndex = providers.Count - 1;
+                _settings.Save();
+            }
 
-                _settings.EndPoint = EditorGUILayout.TextField("EndPoint", _settings.EndPoint);
-
-                if (EditorGUI.EndChangeCheck())
+            EditorGUI.BeginDisabledGroup(providers.Count <= 1);
+            if (GUILayout.Button("-", GUILayout.Width(24)))
+            {
+                if (EditorUtility.DisplayDialog("Delete Provider",
+                        $"Delete \"{providers[_settings.ActiveProviderIndex].Name}\"?", "Delete", "Cancel"))
                 {
-                    _settings.SetApiKey(_apiKey);
+                    providers.RemoveAt(_settings.ActiveProviderIndex);
+                    _settings.ActiveProviderIndex = Mathf.Clamp(
+                        _settings.ActiveProviderIndex, 0, providers.Count - 1);
                     _settings.Save();
                 }
             }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        void DrawActiveProviderFields()
+        {
+            var provider = _settings.ActiveProvider;
+
+            EditorGUI.BeginChangeCheck();
+
+            provider.Name = EditorGUILayout.TextField("Provider Name", provider.Name);
+
+            var apiKey = EditorGUILayout.PasswordField("API Key", provider.ApiKey ?? "");
+            if (apiKey != provider.ApiKey)
+            {
+                provider.ApiKey = apiKey;
+                _settings.SetApiKey(apiKey);
+            }
+
+            provider.BaseUrl = EditorGUILayout.TextField("Base URL (OpenAI-compatible)", provider.BaseUrl);
+            provider.VLModel = EditorGUILayout.TextField("Vision Model", provider.VLModel);
+            provider.EmbeddingModel = EditorGUILayout.TextField("Embedding Model", provider.EmbeddingModel);
+
+            if (EditorGUI.EndChangeCheck())
+                _settings.Save();
         }
 
         void DrawWorkflowControl()

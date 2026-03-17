@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace SemanticSearch.Editor.Core.LLM
 {
-    public class QwenVLClient
+    public class VisionClient
     {
         readonly LLMApiConfig _config;
         readonly LLMHttpClient _http;
@@ -11,7 +11,7 @@ namespace SemanticSearch.Editor.Core.LLM
         const string DefaultPrompt =
             "请用中文简要描述这张图片的内容、风格、主要颜色和可能的用途，控制在100字以内。";
 
-        public QwenVLClient(LLMApiConfig config, LLMHttpClient httpClient)
+        public VisionClient(LLMApiConfig config, LLMHttpClient httpClient)
         {
             _config = config;
             _http = httpClient;

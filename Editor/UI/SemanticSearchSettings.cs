@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEditor;
@@ -9,17 +10,23 @@ namespace SemanticSearch.Editor.UI
     [Serializable]
     public class SemanticSearchSettings
     {
-        public string VisionModel = "qwen-vl-plus";
-        public string EmbeddingModel = "text-embedding-v3";
-        public string EndPoint = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        public List<LLMProviderConfig> Providers = new List<LLMProviderConfig>();
+        public int ActiveProviderIndex;
         public bool AutoIndexOnImport = true;
         public int MaxConcurrent = 3;
 
-        private static SemanticSearchSettings _instance;
+        [NonSerialized] private static SemanticSearchSettings _instance;
         public static SemanticSearchSettings Instance => _instance ?? (_instance = Load());
 
-        static string ProjectHash => Application.dataPath.GetHashCode().ToString("X8");
-        static string EditorPrefsKey => $"SemanticSearch_{ProjectHash}_ApiKey";
+        public LLMProviderConfig ActiveProvider
+        {
+            get
+            {
+                EnsureDefaults();
+                int idx = Mathf.Clamp(ActiveProviderIndex, 0, Providers.Count - 1);
+                return Providers[idx];
+            }
+        }
 
         static string SettingsPath
         {
@@ -29,6 +36,10 @@ namespace SemanticSearch.Editor.UI
                 return Path.Combine(projectRoot, "UserSettings", "SemanticSearch", "Settings.json");
             }
         }
+
+        static string ProjectHash => Application.dataPath.GetHashCode().ToString("X8");
+
+        static string ApiKeyPrefsPrefix => $"SemanticSearch_{ProjectHash}_Provider_";
 
         public static SemanticSearchSettings Load()
         {
@@ -41,6 +52,8 @@ namespace SemanticSearch.Editor.UI
                     var settings = JsonUtility.FromJson<SemanticSearchSettings>(json);
                     if (settings != null)
                     {
+                        settings.EnsureDefaults();
+                        settings.LoadApiKeys();
                         _instance = settings;
                         return settings;
                     }
@@ -52,7 +65,40 @@ namespace SemanticSearch.Editor.UI
             }
 
             _instance = new SemanticSearchSettings();
+            _instance.EnsureDefaults();
+            _instance.MigrateFromLegacy();
             return _instance;
+        }
+
+        void MigrateFromLegacy()
+        {
+            var legacyKey = $"SemanticSearch_{ProjectHash}_ApiKey";
+            var legacyApiKey = EditorPrefs.GetString(legacyKey, "");
+            if (!string.IsNullOrEmpty(legacyApiKey) && Providers.Count > 0)
+            {
+                Providers[0].ApiKey = legacyApiKey;
+                SaveApiKeys();
+                EditorPrefs.DeleteKey(legacyKey);
+            }
+        }
+
+        void EnsureDefaults()
+        {
+            if (Providers == null || Providers.Count == 0)
+            {
+                Providers = new List<LLMProviderConfig>
+                {
+                    new LLMProviderConfig
+                    {
+                        Name = "Qwen (DashScope)",
+                        BaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                        VLModel = "qwen-vl-plus",
+                        EmbeddingModel = "text-embedding-v3"
+                    }
+                };
+            }
+
+            ActiveProviderIndex = Mathf.Clamp(ActiveProviderIndex, 0, Providers.Count - 1);
         }
 
         public void Save()
@@ -64,7 +110,13 @@ namespace SemanticSearch.Editor.UI
                 if (!Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
-                var json = JsonUtility.ToJson(this, true);
+                SaveApiKeys();
+
+                var clone = JsonUtility.FromJson<SemanticSearchSettings>(JsonUtility.ToJson(this));
+                foreach (var p in clone.Providers)
+                    p.ApiKey = "";
+
+                var json = JsonUtility.ToJson(clone, true);
                 File.WriteAllText(path, json);
             }
             catch (Exception e)
@@ -73,18 +125,35 @@ namespace SemanticSearch.Editor.UI
             }
         }
 
-        public string GetApiKey() => EditorPrefs.GetString(EditorPrefsKey, "");
+        void LoadApiKeys()
+        {
+            for (int i = 0; i < Providers.Count; i++)
+                Providers[i].ApiKey = EditorPrefs.GetString(ApiKeyPrefsPrefix + i, "");
+        }
 
-        public void SetApiKey(string key) => EditorPrefs.SetString(EditorPrefsKey, key);
+        void SaveApiKeys()
+        {
+            for (int i = 0; i < Providers.Count; i++)
+                EditorPrefs.SetString(ApiKeyPrefsPrefix + i, Providers[i].ApiKey ?? "");
+        }
+
+        public string GetApiKey() => ActiveProvider.ApiKey;
+
+        public void SetApiKey(string key)
+        {
+            ActiveProvider.ApiKey = key;
+            SaveApiKeys();
+        }
 
         public LLMApiConfig ToLLMApiConfig()
         {
+            var p = ActiveProvider;
             return new LLMApiConfig
             {
-                ApiKey = GetApiKey(),
-                VLModel = VisionModel,
-                EmbeddingModel = EmbeddingModel,
-                BaseUrl = EndPoint,
+                ApiKey = p.ApiKey,
+                VLModel = p.VLModel,
+                EmbeddingModel = p.EmbeddingModel,
+                BaseUrl = p.BaseUrl,
                 MaxConcurrent = MaxConcurrent,
             };
         }

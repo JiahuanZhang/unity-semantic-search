@@ -5,12 +5,12 @@ using System.Threading.Tasks;
 
 namespace SemanticSearch.Editor.Core.LLM
 {
-    public class QwenEmbeddingClient
+    public class EmbeddingClient
     {
         readonly LLMApiConfig _config;
         readonly LLMHttpClient _http;
 
-        public QwenEmbeddingClient(LLMApiConfig config, LLMHttpClient httpClient)
+        public EmbeddingClient(LLMApiConfig config, LLMHttpClient httpClient)
         {
             _config = config;
             _http = httpClient;

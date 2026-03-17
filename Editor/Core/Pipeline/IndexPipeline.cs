@@ -24,8 +24,8 @@ namespace SemanticSearch.Editor.Core.Pipeline
 
         readonly SemanticSearchDB _db;
         readonly LLMApiConfig _config;
-        readonly QwenVLClient _vlClient;
-        readonly QwenEmbeddingClient _embeddingClient;
+        readonly VisionClient _vlClient;
+        readonly EmbeddingClient _embeddingClient;
 
         CancellationTokenSource _cts;
 
@@ -58,8 +58,8 @@ namespace SemanticSearch.Editor.Core.Pipeline
             _db = db;
             _config = config;
             var http = new LLMHttpClient(config);
-            _vlClient = new QwenVLClient(config, http);
-            _embeddingClient = new QwenEmbeddingClient(config, http);
+            _vlClient = new VisionClient(config, http);
+            _embeddingClient = new EmbeddingClient(config, http);
         }
 
         public async Task<bool> IndexSingleAsync(string assetPath, CancellationToken ct)
