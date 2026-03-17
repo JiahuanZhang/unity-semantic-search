@@ -12,7 +12,7 @@ namespace SemanticSearch.Editor.UI
     {
         public List<LLMProviderConfig> Providers = new List<LLMProviderConfig>();
         public int ActiveProviderIndex;
-        public bool AutoIndexOnImport = true;
+        public bool AutoIndexOnImport = false;
         public int MaxConcurrent = 3;
 
         [NonSerialized] private static SemanticSearchSettings _instance;

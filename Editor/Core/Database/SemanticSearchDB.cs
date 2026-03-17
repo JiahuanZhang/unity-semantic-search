@@ -35,7 +35,7 @@ namespace SemanticSearch.Editor.Core.Database
                 var projectRoot = UnityEngine.Application.dataPath;
                 // Application.dataPath => "{ProjectRoot}/Assets", 去掉末尾 /Assets
                 projectRoot = Path.GetDirectoryName(projectRoot);
-                return Path.Combine(projectRoot, "UserSettings", "SemanticSearch", "Index.db");
+                return Path.Combine(projectRoot, "ProjectSettings", "SemanticSearch", "Index.db");
             }
         }
 
