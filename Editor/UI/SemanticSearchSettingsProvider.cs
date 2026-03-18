@@ -74,15 +74,73 @@ namespace SemanticSearch.Editor.UI
 
             using (new EditorGUI.IndentLevelScope())
             {
+                DrawAdminToggle();
+                EditorGUILayout.Space(4);
                 DrawLLMConfiguration();
-                EditorGUILayout.Space(4);
-                DrawWorkflowControl();
-                EditorGUILayout.Space(4);
-                DrawDatabaseMaintenance();
+
+                if (_settings.IsAdmin)
+                {
+                    EditorGUILayout.Space(4);
+                    DrawRoleProviderSelector();
+                    EditorGUILayout.Space(4);
+                    DrawWorkflowControl();
+                    EditorGUILayout.Space(4);
+                    DrawDatabaseMaintenance();
+                }
             }
 
             EditorGUILayout.Space(8);
             DrawAssetViewShortcut();
+        }
+
+        void DrawAdminToggle()
+        {
+            EditorGUI.BeginChangeCheck();
+            bool newValue = EditorGUILayout.Toggle("Admin Mode", _settings.IsAdmin);
+            if (EditorGUI.EndChangeCheck() && newValue != _settings.IsAdmin)
+            {
+                if (newValue)
+                {
+                    if (EditorUtility.DisplayDialog("Admin Mode",
+                            "Warning: Admin mode is intended only for developers.\nAre you sure you want to enable it?",
+                            "Confirm", "Cancel"))
+                    {
+                        _settings.IsAdmin = true;
+                        _settings.Save();
+                    }
+                }
+                else
+                {
+                    _settings.IsAdmin = false;
+                    _settings.Save();
+                }
+            }
+        }
+
+        void DrawRoleProviderSelector()
+        {
+            var names = _settings.Providers.Select(p => p.Name).ToArray();
+            if (names.Length == 0) return;
+
+            EditorGUILayout.LabelField("Role Provider Assignment", EditorStyles.boldLabel);
+            using (new EditorGUI.IndentLevelScope())
+            {
+                EditorGUI.BeginChangeCheck();
+
+                _settings.AdminProviderIndex = EditorGUILayout.Popup(
+                    "Admin Provider", _settings.AdminProviderIndex, names);
+                _settings.UserProviderIndex = EditorGUILayout.Popup(
+                    "User Provider", _settings.UserProviderIndex, names);
+
+                var current = _settings.IsAdmin ? "Admin" : "User";
+                var currentProvider = _settings.GetRoleProvider();
+                EditorGUILayout.HelpBox(
+                    $"Current role: {current}, using provider: {currentProvider.Name}",
+                    MessageType.Info);
+
+                if (EditorGUI.EndChangeCheck())
+                    _settings.Save();
+            }
         }
 
         void DrawLLMConfiguration()
@@ -92,9 +150,16 @@ namespace SemanticSearch.Editor.UI
 
             using (new EditorGUI.IndentLevelScope())
             {
-                DrawProviderSelector();
-                EditorGUILayout.Space(4);
-                DrawActiveProviderFields();
+                if (_settings.IsAdmin)
+                {
+                    DrawProviderSelector();
+                    EditorGUILayout.Space(4);
+                    DrawActiveProviderFields();
+                }
+                else
+                {
+                    DrawUserProviderFields();
+                }
             }
         }
 
@@ -154,6 +219,36 @@ namespace SemanticSearch.Editor.UI
             {
                 provider.ApiKey = apiKey;
                 _settings.SetApiKey(apiKey);
+            }
+
+            string baseUrlLabel = provider.ProviderType == LLMProviderType.Gemini
+                ? "Base URL (Gemini API)" : "Base URL (OpenAI-compatible)";
+            provider.BaseUrl = EditorGUILayout.TextField(baseUrlLabel, provider.BaseUrl);
+            provider.VLModel = EditorGUILayout.TextField("Vision Model", provider.VLModel);
+            provider.EmbeddingModel = EditorGUILayout.TextField("Embedding Model", provider.EmbeddingModel);
+
+            if (EditorGUI.EndChangeCheck())
+                _settings.Save();
+
+            EditorGUILayout.Space(4);
+            DrawLlmTestControls(provider);
+        }
+
+        void DrawUserProviderFields()
+        {
+            var provider = _settings.GetRoleProvider();
+
+            EditorGUILayout.LabelField("Provider", provider.Name, EditorStyles.boldLabel);
+
+            EditorGUI.BeginChangeCheck();
+
+            provider.ProviderType = (LLMProviderType)EditorGUILayout.EnumPopup("Provider Type", provider.ProviderType);
+
+            var apiKey = EditorGUILayout.PasswordField("API Key", provider.ApiKey ?? "");
+            if (apiKey != provider.ApiKey)
+            {
+                provider.ApiKey = apiKey;
+                _settings.SaveApiKeyForProvider(_settings.UserProviderIndex);
             }
 
             string baseUrlLabel = provider.ProviderType == LLMProviderType.Gemini
@@ -295,7 +390,21 @@ namespace SemanticSearch.Editor.UI
                     if (_isRunning && GUILayout.Button("Cancel", GUILayout.Height(24)))
                         _cts?.Cancel();
                 }
+
+                if (GUILayout.Button("Open Database Folder", GUILayout.Height(22)))
+                    OpenDatabaseFolder();
             }
+        }
+
+        static void OpenDatabaseFolder()
+        {
+            var folder = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName,
+                "ProjectSettings", "SemanticSearch");
+            if (System.IO.Directory.Exists(folder))
+                EditorUtility.RevealInFinder(folder);
+            else
+                EditorUtility.DisplayDialog("Semantic Search", "Database folder does not exist yet.", "OK");
         }
 
         async void RunScanAndIndex()
