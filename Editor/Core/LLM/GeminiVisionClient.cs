@@ -9,11 +9,6 @@ namespace SemanticSearch.Editor.Core.LLM
         readonly LLMApiConfig _config;
         readonly LLMHttpClient _http;
 
-        const string DefaultPrompt =
-    "Please describe this image in both Chinese and English. "
-    + "Include content, style, main colors. "
-    + "Format: [CN] 中文描述 [EN] English description. Keep each under 60 words.";
-
         public GeminiVisionClient(LLMApiConfig config, LLMHttpClient httpClient)
         {
             _config = config;
@@ -35,7 +30,7 @@ namespace SemanticSearch.Editor.Core.LLM
                                 ))
                             ),
                             SimpleJson.Obj(
-                                ("text", (object)(prompt ?? DefaultPrompt))
+                                ("text", (object)(prompt ?? VisionConstants.DefaultPrompt))
                             )
                         ))
                     )
