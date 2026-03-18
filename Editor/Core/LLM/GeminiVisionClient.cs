@@ -1,20 +1,20 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace SemanticSearch.Editor.Core.LLM
 {
-    public class VisionClient : IVisionClient
+    public class GeminiVisionClient : IVisionClient
     {
         readonly LLMApiConfig _config;
         readonly LLMHttpClient _http;
 
         const string DefaultPrompt =
-    "Extract keywords/tags for this image in both Chinese and English. "
-    + "Cover: subject, art style, key colors, notable features. "
-    + "Output ONLY comma-separated keywords, no sentences. "
-    + "Format: [CN] 关键词1、关键词2 [EN] keyword1, keyword2. Max 10 keywords per language.";
+    "Please describe this image in both Chinese and English. "
+    + "Include content, style, main colors. "
+    + "Format: [CN] 中文描述 [EN] English description. Keep each under 60 words.";
 
-        public VisionClient(LLMApiConfig config, LLMHttpClient httpClient)
+        public GeminiVisionClient(LLMApiConfig config, LLMHttpClient httpClient)
         {
             _config = config;
             _http = httpClient;
@@ -23,22 +23,18 @@ namespace SemanticSearch.Editor.Core.LLM
         public async Task<string> RequestCaptionAsync(byte[] imageData, string prompt = null)
         {
             string base64 = Convert.ToBase64String(imageData);
-            string dataUrl = $"data:image/png;base64,{base64}";
 
             var body = SimpleJson.Serialize(SimpleJson.Obj(
-                ("model", _config.VLModel),
-                ("messages", SimpleJson.Arr(
+                ("contents", SimpleJson.Arr(
                     SimpleJson.Obj(
-                        ("role", (object)"user"),
-                        ("content", SimpleJson.Arr(
+                        ("parts", SimpleJson.Arr(
                             SimpleJson.Obj(
-                                ("type", (object)"image_url"),
-                                ("image_url", SimpleJson.Obj(
-                                    ("url", (object)dataUrl)
+                                ("inline_data", SimpleJson.Obj(
+                                    ("mime_type", (object)"image/png"),
+                                    ("data", (object)base64)
                                 ))
                             ),
                             SimpleJson.Obj(
-                                ("type", (object)"text"),
                                 ("text", (object)(prompt ?? DefaultPrompt))
                             )
                         ))
@@ -46,7 +42,7 @@ namespace SemanticSearch.Editor.Core.LLM
                 ))
             ));
 
-            string url = $"{_config.BaseUrl.TrimEnd('/')}/chat/completions";
+            string url = $"{_config.BaseUrl.TrimEnd('/')}/models/{_config.VLModel}:generateContent";
             string response = await _http.PostJsonAsync(url, body, _config.ApiKey);
             return ParseCaption(response);
         }
@@ -54,9 +50,9 @@ namespace SemanticSearch.Editor.Core.LLM
         static string ParseCaption(string json)
         {
             var root = SimpleJson.DeserializeObject(json);
-            var content = SimpleJson.GetString(root, "choices", "0", "message", "content");
+            var content = SimpleJson.GetString(root, "candidates", "0", "content", "parts", "0", "text");
             if (string.IsNullOrEmpty(content))
-                throw new Exception($"Failed to parse caption from response: {json}");
+                throw new Exception($"Failed to parse caption from Gemini response: {json}");
             return content.Trim();
         }
     }

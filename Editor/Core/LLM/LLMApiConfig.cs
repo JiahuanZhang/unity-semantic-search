@@ -3,10 +3,17 @@ using SemanticSearch.Editor.UI;
 
 namespace SemanticSearch.Editor.Core.LLM
 {
+    public enum LLMProviderType
+    {
+        OpenAI = 0,
+        Gemini = 1,
+    }
+
     [Serializable]
     public class LLMProviderConfig
     {
         public string Name = "Default";
+        public LLMProviderType ProviderType = LLMProviderType.OpenAI;
         public string ApiKey = "";
         public string BaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         public string VLModel = "qwen-vl-plus";
@@ -17,6 +24,7 @@ namespace SemanticSearch.Editor.Core.LLM
         public LLMProviderConfig(LLMProviderConfig other)
         {
             Name = other.Name;
+            ProviderType = other.ProviderType;
             ApiKey = other.ApiKey;
             BaseUrl = other.BaseUrl;
             VLModel = other.VLModel;
@@ -26,6 +34,7 @@ namespace SemanticSearch.Editor.Core.LLM
 
     public class LLMApiConfig
     {
+        public LLMProviderType ProviderType = LLMProviderType.OpenAI;
         public string ApiKey = "";
         public string VLModel = "qwen-vl-plus";
         public string EmbeddingModel = "text-embedding-v3";

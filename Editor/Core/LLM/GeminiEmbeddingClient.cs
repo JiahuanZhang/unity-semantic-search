@@ -5,12 +5,12 @@ using System.Threading.Tasks;
 
 namespace SemanticSearch.Editor.Core.LLM
 {
-    public class EmbeddingClient : IEmbeddingClient
+    public class GeminiEmbeddingClient : IEmbeddingClient
     {
         readonly LLMApiConfig _config;
         readonly LLMHttpClient _http;
 
-        public EmbeddingClient(LLMApiConfig config, LLMHttpClient httpClient)
+        public GeminiEmbeddingClient(LLMApiConfig config, LLMHttpClient httpClient)
         {
             _config = config;
             _http = httpClient;
@@ -19,28 +19,39 @@ namespace SemanticSearch.Editor.Core.LLM
         public async Task<float[]> RequestEmbeddingAsync(string text)
         {
             var body = SimpleJson.Serialize(SimpleJson.Obj(
-                ("model", _config.EmbeddingModel),
-                ("input", (object)text),
-                ("encoding_format", (object)"float")
+                ("model", (object)$"models/{_config.EmbeddingModel}"),
+                ("content", SimpleJson.Obj(
+                    ("parts", SimpleJson.Arr(
+                        SimpleJson.Obj(("text", (object)text))
+                    ))
+                ))
             ));
 
-            string url = $"{_config.BaseUrl.TrimEnd('/')}/embeddings";
+            string url = $"{_config.BaseUrl.TrimEnd('/')}/models/{_config.EmbeddingModel}:embedContent";
             string response = await _http.PostJsonAsync(url, body, _config.ApiKey);
             return ParseSingleEmbedding(response);
         }
 
         public async Task<List<float[]>> RequestEmbeddingBatchAsync(List<string> texts)
         {
-            var inputArr = new List<object>();
-            foreach (var t in texts) inputArr.Add(t);
+            var requests = new List<object>();
+            foreach (var t in texts)
+            {
+                requests.Add(SimpleJson.Obj(
+                    ("model", (object)$"models/{_config.EmbeddingModel}"),
+                    ("content", SimpleJson.Obj(
+                        ("parts", SimpleJson.Arr(
+                            SimpleJson.Obj(("text", (object)t))
+                        ))
+                    ))
+                ));
+            }
 
             var body = SimpleJson.Serialize(SimpleJson.Obj(
-                ("model", _config.EmbeddingModel),
-                ("input", (object)inputArr),
-                ("encoding_format", (object)"float")
+                ("requests", (object)requests)
             ));
 
-            string url = $"{_config.BaseUrl.TrimEnd('/')}/embeddings";
+            string url = $"{_config.BaseUrl.TrimEnd('/')}/models/{_config.EmbeddingModel}:batchEmbedContents";
             string response = await _http.PostJsonAsync(url, body, _config.ApiKey);
             return ParseBatchEmbedding(response);
         }
@@ -48,27 +59,27 @@ namespace SemanticSearch.Editor.Core.LLM
         static float[] ParseSingleEmbedding(string json)
         {
             var root = SimpleJson.DeserializeObject(json);
-            var embeddingArr = SimpleJson.GetArray(root, "data", "0", "embedding");
+            var embeddingArr = SimpleJson.GetArray(root, "embedding", "values");
             if (embeddingArr == null)
-                throw new Exception($"Failed to parse embedding from response: {json}");
+                throw new Exception($"Failed to parse embedding from Gemini response: {json}");
             return ToFloatArray(embeddingArr);
         }
 
         static List<float[]> ParseBatchEmbedding(string json)
         {
             var root = SimpleJson.DeserializeObject(json);
-            var dataArr = SimpleJson.GetArray(root, "data");
+            var dataArr = SimpleJson.GetArray(root, "embeddings");
             if (dataArr == null)
-                throw new Exception($"Failed to parse batch embedding from response: {json}");
+                throw new Exception($"Failed to parse batch embedding from Gemini response: {json}");
 
             var results = new List<float[]>();
             foreach (var item in dataArr)
             {
                 if (item is Dictionary<string, object> dict &&
-                    dict.TryGetValue("embedding", out var embObj) &&
-                    embObj is List<object> embList)
+                    dict.TryGetValue("values", out var valObj) &&
+                    valObj is List<object> valList)
                 {
-                    results.Add(ToFloatArray(embList));
+                    results.Add(ToFloatArray(valList));
                 }
             }
             return results;

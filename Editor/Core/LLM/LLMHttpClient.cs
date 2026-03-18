@@ -61,7 +61,11 @@ namespace SemanticSearch.Editor.Core.LLM
                 timeout = _config.TimeoutSeconds
             };
             request.SetRequestHeader("Content-Type", "application/json");
-            request.SetRequestHeader("Authorization", $"Bearer {apiKey}");
+
+            if (_config.ProviderType == LLMProviderType.Gemini)
+                request.SetRequestHeader("x-goog-api-key", apiKey);
+            else
+                request.SetRequestHeader("Authorization", $"Bearer {apiKey}");
 
             var op = request.SendWebRequest();
 

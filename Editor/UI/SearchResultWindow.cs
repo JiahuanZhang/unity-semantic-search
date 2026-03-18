@@ -13,6 +13,7 @@ namespace SemanticSearch.Editor.UI
     public class SearchResultWindow : EditorWindow
     {
         string _queryText = "";
+        string _lastSearchedText = "";
         List<SearchResult> _results = new List<SearchResult>();
         bool _isSearching;
         float _searchTime;
@@ -36,6 +37,7 @@ namespace SemanticSearch.Editor.UI
             var window = GetWindow<SearchResultWindow>("Semantic Search Results");
             window.minSize = new Vector2(400, 300);
             window._queryText = queryText ?? "";
+            window._lastSearchedText = "";
             if (!string.IsNullOrEmpty(queryText))
                 window.ExecuteSearch(queryText);
         }
@@ -77,12 +79,15 @@ namespace SemanticSearch.Editor.UI
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUI.SetNextControlName("SearchField");
-            _queryText = EditorGUILayout.TextField(_queryText, EditorStyles.toolbarSearchField);
+            var committedQuery = EditorGUILayout.DelayedTextField(_queryText, EditorStyles.toolbarSearchField);
+            if (committedQuery != _queryText)
+            {
+                _queryText = committedQuery;
+                if (!string.IsNullOrEmpty(_queryText?.Trim()) && _queryText.Trim() != _lastSearchedText)
+                    ExecuteSearch(_queryText.Trim());
+            }
 
-            if (GUILayout.Button("Search", EditorStyles.toolbarButton, GUILayout.Width(60))
-                || (Event.current.type == EventType.KeyDown
-                    && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter)
-                    && GUI.GetNameOfFocusedControl() == "SearchField"))
+            if (GUILayout.Button("Search", EditorStyles.toolbarButton, GUILayout.Width(60)))
             {
                 if (!string.IsNullOrEmpty(_queryText?.Trim()))
                     ExecuteSearch(_queryText.Trim());
@@ -214,7 +219,7 @@ namespace SemanticSearch.Editor.UI
             if (_searchEngine == null)
             {
                 var http = new LLMHttpClient(config);
-                var embedding = new EmbeddingClient(config, http);
+                var embedding = LLMClientFactory.CreateEmbeddingClient(config, http);
                 _searchEngine = new VectorSearchEngine(_db, embedding);
             }
 
@@ -230,6 +235,7 @@ namespace SemanticSearch.Editor.UI
 
         async void ExecuteSearch(string queryText)
         {
+            _lastSearchedText = queryText;
             _isSearching = true;
             _results.Clear();
             _displayCount = PageSize;

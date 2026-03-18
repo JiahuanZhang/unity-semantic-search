@@ -150,6 +150,7 @@ namespace SemanticSearch.Editor.UI
             var p = ActiveProvider;
             return new LLMApiConfig
             {
+                ProviderType = p.ProviderType,
                 ApiKey = p.ApiKey,
                 VLModel = p.VLModel,
                 EmbeddingModel = p.EmbeddingModel,
