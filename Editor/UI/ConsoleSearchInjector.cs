@@ -109,7 +109,7 @@ namespace SemanticSearch.Editor.UI
             return result;
         }
 
-        [MenuItem("Window/Semantic Search #&f")]
+        [MenuItem("Window/Semantic Search/Search Window #&f")]
         static void OpenSearchWindow()
         {
             SearchResultWindow.Show("");

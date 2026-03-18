@@ -343,6 +343,19 @@ namespace SemanticSearch.Editor.Core.Database
             }
         }
 
+        public int GetIndexedCount()
+        {
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM assets WHERE status = 'Indexed';";
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
+        }
+
         private static void BindRecordParams(SqliteCommand cmd, AssetRecord r)
         {
             cmd.Parameters.AddWithValue("@guid", r.Guid);

@@ -28,10 +28,6 @@ namespace SemanticSearch.Editor.UI
         GUIStyle _italicLabel;
         GUIStyle _greenLabel;
 
-        SemanticSearchDB _db;
-        VectorSearchEngine _searchEngine;
-        LLMApiConfig _cachedConfig;
-
         public static void Show(string queryText)
         {
             var window = GetWindow<SearchResultWindow>("Semantic Search Results");
@@ -146,7 +142,11 @@ namespace SemanticSearch.Editor.UI
             EditorGUILayout.BeginVertical();
 
             string fileName = System.IO.Path.GetFileName(result.AssetPath);
+            EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField(fileName, _boldLabel);
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.LabelField($"{result.Similarity * 100f:F1}%", _greenLabel, GUILayout.Width(48));
+            EditorGUILayout.EndHorizontal();
             EditorGUILayout.LabelField(result.AssetPath, _grayMiniLabel);
 
             if (!string.IsNullOrEmpty(result.Caption))
@@ -156,8 +156,6 @@ namespace SemanticSearch.Editor.UI
                     : result.Caption;
                 EditorGUILayout.LabelField(caption, _italicLabel);
             }
-
-            EditorGUILayout.LabelField($"{result.Similarity * 100f:F1}%", _greenLabel);
 
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
@@ -194,45 +192,6 @@ namespace SemanticSearch.Editor.UI
             EditorGUILayout.Space(2);
         }
 
-        VectorSearchEngine GetOrCreateSearchEngine()
-        {
-            var config = LLMApiConfig.Load();
-            bool configChanged = _cachedConfig == null
-                || _cachedConfig.ApiKey != config.ApiKey
-                || _cachedConfig.BaseUrl != config.BaseUrl
-                || _cachedConfig.EmbeddingModel != config.EmbeddingModel;
-
-            if (configChanged)
-            {
-                _db?.Dispose();
-                _db = null;
-                _searchEngine = null;
-                _cachedConfig = config;
-            }
-
-            if (_db == null)
-            {
-                _db = new SemanticSearchDB();
-                _db.Open();
-            }
-
-            if (_searchEngine == null)
-            {
-                var http = new LLMHttpClient(config);
-                var embedding = LLMClientFactory.CreateEmbeddingClient(config, http);
-                _searchEngine = new VectorSearchEngine(_db, embedding);
-            }
-
-            return _searchEngine;
-        }
-
-        void OnDestroy()
-        {
-            _db?.Dispose();
-            _db = null;
-            _searchEngine = null;
-        }
-
         async void ExecuteSearch(string queryText)
         {
             _lastSearchedText = queryText;
@@ -241,10 +200,17 @@ namespace SemanticSearch.Editor.UI
             _displayCount = PageSize;
             Repaint();
 
+            SemanticSearchDB db = null;
             try
             {
                 var sw = Stopwatch.StartNew();
-                var engine = GetOrCreateSearchEngine();
+                var config = LLMApiConfig.Load();
+                db = new SemanticSearchDB();
+                db.Open();
+
+                var http = new LLMHttpClient(config);
+                var embedding = LLMClientFactory.CreateEmbeddingClient(config, http);
+                var engine = new VectorSearchEngine(db, embedding);
                 _results = await engine.SearchAsync(queryText);
                 sw.Stop();
                 _searchTime = (float)sw.Elapsed.TotalSeconds;
@@ -258,6 +224,7 @@ namespace SemanticSearch.Editor.UI
             {
                 try
                 {
+                    db?.Dispose();
                     _isSearching = false;
                     Repaint();
                 }

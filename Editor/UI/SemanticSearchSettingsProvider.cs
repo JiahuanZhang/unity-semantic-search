@@ -14,6 +14,8 @@ namespace SemanticSearch.Editor.UI
 {
     public class SemanticSearchSettingsProvider : SettingsProvider
     {
+        static bool s_needsCountRefresh;
+
         SemanticSearchSettings _settings;
 
         bool _foldLLM = true;
@@ -34,6 +36,18 @@ namespace SemanticSearch.Editor.UI
         [SettingsProvider]
         public static SettingsProvider Create() => new SemanticSearchSettingsProvider();
 
+        [MenuItem("Window/Semantic Search/Settings")]
+        static void OpenSettingsFromWindowMenu()
+        {
+            SettingsService.OpenProjectSettings("Project/Semantic Search");
+        }
+
+        public static void RequestCountsRefresh()
+        {
+            s_needsCountRefresh = true;
+            SettingsService.RepaintAllSettingsWindow();
+        }
+
         public override void OnActivate(string searchContext, UnityEngine.UIElements.VisualElement rootElement)
         {
             _settings = SemanticSearchSettings.Load();
@@ -48,6 +62,12 @@ namespace SemanticSearch.Editor.UI
 
         public override void OnGUI(string searchContext)
         {
+            if (s_needsCountRefresh && !_isRunning)
+            {
+                RefreshCounts();
+                s_needsCountRefresh = false;
+            }
+
             EditorGUILayout.Space(6);
 
             using (new EditorGUI.IndentLevelScope())
@@ -153,7 +173,7 @@ namespace SemanticSearch.Editor.UI
                 EditorGUILayout.HelpBox(_llmTestStatus, _llmTestStatusType);
 
             EditorGUI.BeginDisabledGroup(_isTestingLlm);
-            if (GUILayout.Button(_isTestingLlm ? "Testing..." : "Test LLM", GUILayout.Height(22)))
+            if (GUILayout.Button(_isTestingLlm ? "Testing..." : "Test LLM", GUILayout.Height(22), GUILayout.Width(100)))
                 TestLlmConnectionAsync(new LLMProviderConfig(provider));
             EditorGUI.EndDisabledGroup();
         }
@@ -163,7 +183,7 @@ namespace SemanticSearch.Editor.UI
             _isTestingLlm = true;
             _llmTestStatus = "Testing current provider...";
             _llmTestStatusType = MessageType.Info;
-            Repaint();
+            RefreshSettingsWindow();
 
             try
             {
@@ -202,7 +222,7 @@ namespace SemanticSearch.Editor.UI
             finally
             {
                 _isTestingLlm = false;
-                Repaint();
+                RefreshSettingsWindow();
             }
         }
 
@@ -212,7 +232,7 @@ namespace SemanticSearch.Editor.UI
             {
                 case LLMProviderType.Gemini:
                     provider.BaseUrl = "https://generativelanguage.googleapis.com/v1beta";
-                    provider.VLModel = "gemini-2.0-flash";
+                    provider.VLModel = "gemini-2.5-flash";
                     provider.EmbeddingModel = "gemini-embedding-001";
                     break;
                 default:
@@ -301,7 +321,7 @@ namespace SemanticSearch.Editor.UI
                 var progress = new Progress<BatchProgress>(p =>
                 {
                     _statusText = $"Indexing {p.Completed}/{p.Total} — {p.CurrentAsset}";
-                    Repaint();
+                    RefreshSettingsWindow();
                 });
 
                 await pipeline.IndexBatchAsync(progress, _cts.Token);
@@ -328,7 +348,7 @@ namespace SemanticSearch.Editor.UI
                 {
                     db?.Close();
                     _isRunning = false;
-                    Repaint();
+                    RefreshSettingsWindow();
                 }
                 catch (Exception) { }
             }
@@ -372,7 +392,7 @@ namespace SemanticSearch.Editor.UI
                     db.Open();
                 }
 
-                _indexedCount = db.GetCount();
+                _indexedCount = db.GetIndexedCount();
                 _pendingCount = db.GetPendingCount();
             }
             catch
@@ -400,7 +420,7 @@ namespace SemanticSearch.Editor.UI
                 MessageType.Info);
         }
 
-        void Repaint()
+        void RefreshSettingsWindow()
         {
             SettingsService.RepaintAllSettingsWindow();
         }

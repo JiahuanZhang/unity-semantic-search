@@ -276,10 +276,13 @@ namespace SemanticSearch.Editor.UI
                 db = new SemanticSearchDB();
                 db.Open();
                 _allRecords = db.GetAll();
+                _statusText = null;
             }
-            catch
+            catch (Exception e)
             {
                 _allRecords = new List<AssetRecord>();
+                _statusText = $"Load failed: {e.Message}";
+                Debug.LogError($"[SemanticSearch] Asset view refresh failed: {e}");
             }
             finally
             {
