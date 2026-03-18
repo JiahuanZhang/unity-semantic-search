@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 using SemanticSearch.Editor.Core.Database;
@@ -260,11 +261,35 @@ namespace SemanticSearch.Editor.UI
             var asset = AssetDatabase.LoadAssetAtPath<Object>(assetPath);
             if (asset == null) return null;
 
-            var tex = asset as Texture2D ?? AssetPreview.GetMiniThumbnail(asset);
+            Texture2D tex;
+            if (asset is Texture2D t)
+            {
+                tex = t;
+            }
+            else if (IsPrefab(assetPath))
+            {
+                tex = AssetPreview.GetAssetPreview(asset);
+                if (tex == null && AssetPreview.IsLoadingAssetPreview(asset.GetInstanceID()))
+                {
+                    EditorApplication.delayCall += Repaint;
+                    return AssetPreview.GetMiniThumbnail(asset);
+                }
+                tex = tex ?? AssetPreview.GetMiniThumbnail(asset);
+            }
+            else
+            {
+                tex = AssetPreview.GetMiniThumbnail(asset);
+            }
+
             _thumbnailCache[assetPath] = tex;
             _thumbnailOrder.Enqueue(assetPath);
             TrimThumbnailCache();
             return tex;
+        }
+
+        static bool IsPrefab(string assetPath)
+        {
+            return Path.GetExtension(assetPath).Equals(".prefab", StringComparison.OrdinalIgnoreCase);
         }
 
         void TrimThumbnailCache()

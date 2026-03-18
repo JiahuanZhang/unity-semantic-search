@@ -18,20 +18,9 @@ namespace SemanticSearch.Editor.Core.Watcher
         private static bool IsAutoIndexEnabled =>
             SemanticSearchSettings.Instance.AutoIndexOnImport;
 
-        private static bool IsSupportedAsset(string path)
-        {
-            var ext = Path.GetExtension(path).ToLowerInvariant();
-            return AssetScanner.GetSupportedExtensions().Contains(ext);
-        }
-
-        private static bool IsBlacklisted(string path)
-        {
-            return AssetScanner.IsBlacklisted(path);
-        }
-
         private static bool ShouldProcess(string path)
         {
-            return IsSupportedAsset(path) && !IsBlacklisted(path);
+            return AssetScanner.IsSupported(path) && !AssetScanner.IsBlacklisted(path);
         }
 
         private static SemanticSearchDB OpenDB()

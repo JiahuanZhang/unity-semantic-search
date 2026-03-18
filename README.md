@@ -120,8 +120,26 @@
 - **素材管理**：控制超大图比例，优先压缩纹理再做索引
 - **运行时机**：尽量在编辑器空闲时执行大批量索引任务
 
+## 架构：资源处理器（Asset Processor）
+
+索引流水线采用**处理器模式**，将不同类型资源的处理逻辑分离，便于后续扩展新资源类型（如脚本、材质等）。
+
+| 组件 | 职责 |
+|---|---|
+| `IAssetProcessor` | 处理器接口，定义 `CanProcess` / `GetAssetData` / `ProcessAsync` |
+| `ImageAssetProcessor` | 处理图片资源（.png/.jpg/.jpeg/.tga），直接读取文件字节 |
+| `PrefabAssetProcessor` | 处理预制体资源（.prefab），通过 AssetPreview 生成预览图 |
+| `AssetProcessorRegistry` | 注册并管理所有处理器，根据文件扩展名自动路由 |
+| `IndexPipeline` | 索引流水线，通过 Registry 获取对应处理器执行索引 |
+
+扩展新资源类型只需：
+1. 实现 `IAssetProcessor` 接口
+2. 在 `AssetProcessorRegistry` 构造函数中注册
+3. 在 `AssetScanner.ExtensionToAssetType` 中添加扩展名映射
+
 ## 最近修复
 
+- 预制体条目在 Asset View 和 Search Results 中默认显示 3D 缩略图（`AssetPreview.GetAssetPreview`），异步加载期间先显示类型图标再自动刷新，性能无阻塞。
 - `Semantic Search Results` 窗口中，匹配度百分比调整为显示在文件名同一行右侧，结果信息更易扫读。
 - 修复 `Semantic Search Results` 窗口保持打开时，`Open Asset View` 偶发打开慢且列表为空的问题。
 - 调整搜索窗口数据库连接策略为“每次搜索按需打开并在结束后释放”，减少窗口之间的连接竞争。

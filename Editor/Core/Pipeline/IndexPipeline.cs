@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using UnityEditor;
 using UnityEngine;
 using SemanticSearch.Editor.Core.Database;
 using SemanticSearch.Editor.Core.LLM;
@@ -22,14 +19,11 @@ namespace SemanticSearch.Editor.Core.Pipeline
 
     public class IndexPipeline
     {
-        static readonly string[] ImageExtensions = { ".png", ".jpg", ".jpeg", ".tga" };
         const int DbWriteBatchSize = 16;
         const int ProgressReportIntervalMs = 100;
 
         readonly SemanticSearchDB _db;
-        readonly LLMApiConfig _config;
-        readonly IVisionClient _vlClient;
-        readonly IEmbeddingClient _embeddingClient;
+        readonly AssetProcessorRegistry _registry;
 
         CancellationTokenSource _cts;
 
@@ -66,15 +60,23 @@ namespace SemanticSearch.Editor.Core.Pipeline
         public IndexPipeline(SemanticSearchDB db, LLMApiConfig config)
         {
             _db = db;
-            _config = config;
             var http = new LLMHttpClient(config);
-            _vlClient = LLMClientFactory.CreateVisionClient(config, http);
-            _embeddingClient = LLMClientFactory.CreateEmbeddingClient(config, http);
+            var vlClient = LLMClientFactory.CreateVisionClient(config, http);
+            var embeddingClient = LLMClientFactory.CreateEmbeddingClient(config, http);
+            _registry = new AssetProcessorRegistry(vlClient, embeddingClient);
         }
+
+        public IndexPipeline(SemanticSearchDB db, AssetProcessorRegistry registry)
+        {
+            _db = db;
+            _registry = registry;
+        }
+
+        public AssetProcessorRegistry Registry => _registry;
 
         public async Task<bool> IndexSingleAsync(string assetPath, CancellationToken ct)
         {
-            var guid = AssetDatabase.AssetPathToGUID(assetPath);
+            var guid = UnityEditor.AssetDatabase.AssetPathToGUID(assetPath);
             if (string.IsNullOrEmpty(guid))
             {
                 Debug.LogError($"[SemanticSearch] Invalid asset path: {assetPath}");
@@ -90,11 +92,11 @@ namespace SemanticSearch.Editor.Core.Pipeline
                 Caption = existing?.Caption,
                 Vector = existing?.Vector,
                 VectorDim = existing?.VectorDim ?? 0,
-                Status = Database.AssetStatus.Pending,
+                Status = AssetStatus.Pending,
                 UpdatedAt = DateTime.UtcNow.ToString("o")
             };
 
-            var result = await BuildRecordForPendingAsync(pendingRecord, ct);
+            var result = await BuildRecordAsync(pendingRecord, ct);
             _db.Upsert(result.Record);
             return result.Success;
         }
@@ -115,7 +117,7 @@ namespace SemanticSearch.Editor.Core.Pipeline
                 return new BatchProgress(0, 0, 0, 0, 0, null);
             }
 
-            var workerCount = Math.Max(1, Math.Min(_config.MaxConcurrent, pending.Count));
+            var workerCount = Math.Max(1, Math.Min(8, pending.Count));
             var queue = new ConcurrentQueue<AssetRecord>(pending);
             var reportLock = new object();
             long lastReportTicks = 0;
@@ -170,7 +172,7 @@ namespace SemanticSearch.Editor.Core.Pipeline
 
                         try
                         {
-                            var result = await BuildRecordForPendingAsync(record, token);
+                            var result = await BuildRecordAsync(record, token);
                             writeBuffer.Add(result.Record);
 
                             if (result.Success)
@@ -253,43 +255,23 @@ namespace SemanticSearch.Editor.Core.Pipeline
             State = PipelineState.Cancelled;
         }
 
+        /// <summary>
+        /// 通过 Registry 获取资源的图片数据（兼容旧调用点）。
+        /// </summary>
         public static byte[] GetAssetImageBytes(string assetPath)
         {
-            var ext = Path.GetExtension(assetPath).ToLowerInvariant();
+            var ext = System.IO.Path.GetExtension(assetPath).ToLowerInvariant();
 
-            if (ImageExtensions.Contains(ext))
-            {
-                var fullPath = Path.GetFullPath(assetPath);
-                return File.Exists(fullPath) ? File.ReadAllBytes(fullPath) : null;
-            }
+            if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga")
+                return new ImageAssetProcessor(null, null).GetAssetData(assetPath);
 
             if (ext == ".prefab")
-            {
-                var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
-                if (asset == null) return null;
-
-                AssetPreview.SetPreviewTextureCacheSize(256);
-                var preview = AssetPreview.GetAssetPreview(asset);
-
-                int retries = 0;
-                const int maxRetries = 30;
-                while (preview == null && AssetPreview.IsLoadingAssetPreview(asset.GetInstanceID()) && retries < maxRetries)
-                {
-                    System.Threading.Thread.Sleep(100);
-                    preview = AssetPreview.GetAssetPreview(asset);
-                    retries++;
-                }
-
-                if (preview == null)
-                    preview = AssetPreview.GetMiniThumbnail(asset);
-
-                return preview != null ? preview.EncodeToPNG() : null;
-            }
+                return new PrefabAssetProcessor(null, null).GetAssetData(assetPath);
 
             return null;
         }
 
-        async Task<IndexSingleResult> BuildRecordForPendingAsync(AssetRecord pendingRecord, CancellationToken ct)
+        async Task<IndexSingleResult> BuildRecordAsync(AssetRecord pendingRecord, CancellationToken ct)
         {
             var guid = pendingRecord?.Guid;
             var assetPath = pendingRecord?.AssetPath;
@@ -305,7 +287,7 @@ namespace SemanticSearch.Editor.Core.Pipeline
             }
 
             if (string.IsNullOrEmpty(guid))
-                guid = AssetDatabase.AssetPathToGUID(assetPath);
+                guid = UnityEditor.AssetDatabase.AssetPathToGUID(assetPath);
 
             if (string.IsNullOrEmpty(guid))
             {
@@ -317,30 +299,26 @@ namespace SemanticSearch.Editor.Core.Pipeline
                 };
             }
 
+            var processor = _registry.GetProcessor(assetPath);
+            if (processor == null)
+            {
+                Debug.LogError($"[SemanticSearch] No processor found for: {assetPath}");
+                return new IndexSingleResult
+                {
+                    Success = false,
+                    Record = CreateErrorRecord(pendingRecord, guid)
+                };
+            }
+
             try
             {
                 ct.ThrowIfCancellationRequested();
 
-                var imageBytes = GetAssetImageBytes(assetPath);
-                if (imageBytes == null || imageBytes.Length == 0)
+                var result = await processor.ProcessAsync(assetPath, ct);
+
+                if (!result.Success)
                 {
-                    Debug.LogError($"[SemanticSearch] Failed to get image data: {assetPath}");
-                    return new IndexSingleResult
-                    {
-                        Success = false,
-                        Record = CreateErrorRecord(pendingRecord, guid)
-                    };
-                }
-
-                var caption = await _vlClient.RequestCaptionAsync(imageBytes);
-                ct.ThrowIfCancellationRequested();
-
-                var vector = await _embeddingClient.RequestEmbeddingAsync(caption);
-                ct.ThrowIfCancellationRequested();
-
-                if (vector == null || vector.Length == 0)
-                {
-                    Debug.LogError($"[SemanticSearch] Empty embedding returned: {assetPath}");
+                    Debug.LogError($"[SemanticSearch] {result.ErrorMessage}");
                     return new IndexSingleResult
                     {
                         Success = false,
@@ -356,10 +334,10 @@ namespace SemanticSearch.Editor.Core.Pipeline
                         Guid = guid,
                         AssetPath = assetPath,
                         Md5 = pendingRecord?.Md5 ?? "",
-                        Caption = caption,
-                        Vector = vector,
-                        VectorDim = vector.Length,
-                        Status = Database.AssetStatus.Indexed,
+                        Caption = result.Caption,
+                        Vector = result.Vector,
+                        VectorDim = result.Vector.Length,
+                        Status = AssetStatus.Indexed,
                         UpdatedAt = DateTime.UtcNow.ToString("o")
                     }
                 };
@@ -395,7 +373,7 @@ namespace SemanticSearch.Editor.Core.Pipeline
                 Caption = pendingRecord?.Caption,
                 Vector = pendingRecord?.Vector,
                 VectorDim = pendingRecord?.VectorDim ?? 0,
-                Status = Database.AssetStatus.Error,
+                Status = AssetStatus.Error,
                 UpdatedAt = DateTime.UtcNow.ToString("o")
             };
         }
@@ -411,6 +389,5 @@ namespace SemanticSearch.Editor.Core.Pipeline
             }
             while (Interlocked.CompareExchange(ref target, value, current) != current);
         }
-
     }
 }

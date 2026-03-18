@@ -1,14 +1,15 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEditor;
-using SemanticSearch.Editor.Core.Database;
-using SemanticSearch.Editor.Core.LLM;
-using SemanticSearch.Editor.Core.Pipeline;
-using AssetStatus = SemanticSearch.Editor.Core.Database.AssetStatus;
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using UnityEngine;
+    using UnityEditor;
+    using SemanticSearch.Editor.Core.Database;
+    using SemanticSearch.Editor.Core.LLM;
+    using SemanticSearch.Editor.Core.Pipeline;
+    using AssetStatus = SemanticSearch.Editor.Core.Database.AssetStatus;
 
 namespace SemanticSearch.Editor.UI
 {
@@ -424,11 +425,35 @@ namespace SemanticSearch.Editor.UI
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
             if (asset == null) return null;
 
-            var tex = asset as Texture2D ?? AssetPreview.GetMiniThumbnail(asset);
+            Texture2D tex;
+            if (asset is Texture2D t)
+            {
+                tex = t;
+            }
+            else if (IsPrefab(assetPath))
+            {
+                tex = AssetPreview.GetAssetPreview(asset);
+                if (tex == null && AssetPreview.IsLoadingAssetPreview(asset.GetInstanceID()))
+                {
+                    EditorApplication.delayCall += Repaint;
+                    return AssetPreview.GetMiniThumbnail(asset);
+                }
+                tex = tex ?? AssetPreview.GetMiniThumbnail(asset);
+            }
+            else
+            {
+                tex = AssetPreview.GetMiniThumbnail(asset);
+            }
+
             _thumbnailCache[assetPath] = tex;
             _thumbnailOrder.Enqueue(assetPath);
             TrimThumbnailCache();
             return tex;
+        }
+
+        static bool IsPrefab(string assetPath)
+        {
+            return Path.GetExtension(assetPath).Equals(".prefab", StringComparison.OrdinalIgnoreCase);
         }
 
         void TrimThumbnailCache()
