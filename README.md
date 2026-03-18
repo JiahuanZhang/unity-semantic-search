@@ -72,7 +72,7 @@
 | 内容 | 路径 | 是否入库 |
 |---|---|---|
 | 用户配置（Provider 列表、端点等） | `UserSettings/SemanticSearch/Settings.json` | 否 |
-| API Key | 本机 EditorPrefs | 否 |
+| API Key | 默认本机 EditorPrefs；勾选 Save 后写入 `UserSettings/SemanticSearch/Settings.json` | 否 |
 | Embed 索引数据库 | `ProjectSettings/SemanticSearch/Index.db` | **是** |
 
 > 不是所有团队成员都有 API Key 权限，因此配置信息不入库。已处理的 embed 数据存入 `ProjectSettings/` 目录，团队成员拉取后即可直接使用语义搜索，无需重新索引。
@@ -83,7 +83,7 @@
 2. 勾选 **Admin Mode** 进入管理员模式（可查看 Workflow Control 和 Database Maintenance）
 3. 通过 **+** 按钮添加 Provider，或编辑默认 Provider
 4. 选择 **Provider Type**（OpenAI 或 Gemini），切换时会自动填充默认值
-5. 填入 Base URL、API Key、Vision Model、Embedding Model
+5. 填入 Base URL、API Key、Vision Model、Embedding Model；如需将 API Key 写入 `Settings.json`，勾选 API Key 输入框右侧 **Save**（默认不勾选）
 6. 点击 **Test LLM** 测试当前 Provider 连通性（基于 Embedding 请求）
 7. 在 **Role Provider Assignment** 中为管理员和普通用户分别指定使用的 Provider
 8. 如需自动索引，开启 **Auto-Index On Import**（默认关闭，开启后新导入资产会自动从 Pending 进入 Indexed）

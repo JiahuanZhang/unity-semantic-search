@@ -217,12 +217,7 @@ namespace SemanticSearch.Editor.UI
             if (provider.ProviderType != oldType)
                 ApplyProviderTypeDefaults(provider);
 
-            var apiKey = EditorGUILayout.PasswordField("API Key", provider.ApiKey ?? "");
-            if (apiKey != provider.ApiKey)
-            {
-                provider.ApiKey = apiKey;
-                _settings.SetApiKey(apiKey);
-            }
+            DrawApiKeyFieldWithPersistToggle(provider, () => _settings.SetApiKey(provider.ApiKey));
 
             string baseUrlLabel = provider.ProviderType == LLMProviderType.Gemini
                 ? "Base URL (Gemini API)" : "Base URL (OpenAI-compatible)";
@@ -247,12 +242,9 @@ namespace SemanticSearch.Editor.UI
 
             provider.ProviderType = (LLMProviderType)EditorGUILayout.EnumPopup("Provider Type", provider.ProviderType);
 
-            var apiKey = EditorGUILayout.PasswordField("API Key", provider.ApiKey ?? "");
-            if (apiKey != provider.ApiKey)
-            {
-                provider.ApiKey = apiKey;
-                _settings.SaveApiKeyForProvider(_settings.UserProviderIndex);
-            }
+            DrawApiKeyFieldWithPersistToggle(
+                provider,
+                () => _settings.SaveApiKeyForProvider(_settings.UserProviderIndex));
 
             string baseUrlLabel = provider.ProviderType == LLMProviderType.Gemini
                 ? "Base URL (Gemini API)" : "Base URL (OpenAI-compatible)";
@@ -279,6 +271,25 @@ namespace SemanticSearch.Editor.UI
                 TestLlmConnectionAsync(new LLMProviderConfig(provider));
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
+        }
+
+        void DrawApiKeyFieldWithPersistToggle(LLMProviderConfig provider, Action onApiKeyChanged)
+        {
+            EditorGUILayout.BeginHorizontal();
+            var apiKey = EditorGUILayout.PasswordField("API Key", provider.ApiKey ?? "");
+            var saveToJson = GUILayout.Toggle(
+                provider.SaveApiKeyToJson,
+                new GUIContent("Save", "勾选后会将 API Key 写入 Settings.json"),
+                GUILayout.Width(56));
+            EditorGUILayout.EndHorizontal();
+
+            if (apiKey != provider.ApiKey)
+            {
+                provider.ApiKey = apiKey;
+                onApiKeyChanged?.Invoke();
+            }
+
+            provider.SaveApiKeyToJson = saveToJson;
         }
 
         async void TestLlmConnectionAsync(LLMProviderConfig provider)

@@ -15,6 +15,7 @@ namespace SemanticSearch.Editor.Core.LLM
         public string Name = "Default";
         public LLMProviderType ProviderType = LLMProviderType.OpenAI;
         public string ApiKey = "";
+        public bool SaveApiKeyToJson = false;
         public string BaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         public string VLModel = "qwen-vl-plus";
         public string EmbeddingModel = "text-embedding-v3";
@@ -26,6 +27,7 @@ namespace SemanticSearch.Editor.Core.LLM
             Name = other.Name;
             ProviderType = other.ProviderType;
             ApiKey = other.ApiKey;
+            SaveApiKeyToJson = other.SaveApiKeyToJson;
             BaseUrl = other.BaseUrl;
             VLModel = other.VLModel;
             EmbeddingModel = other.EmbeddingModel;

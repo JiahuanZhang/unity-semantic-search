@@ -140,7 +140,10 @@ namespace SemanticSearch.Editor.UI
 
                 var clone = JsonUtility.FromJson<SemanticSearchSettings>(JsonUtility.ToJson(this));
                 foreach (var p in clone.Providers)
-                    p.ApiKey = "";
+                {
+                    if (!p.SaveApiKeyToJson)
+                        p.ApiKey = "";
+                }
 
                 var json = JsonUtility.ToJson(clone, true);
                 File.WriteAllText(path, json);
@@ -154,7 +157,12 @@ namespace SemanticSearch.Editor.UI
         void LoadApiKeys()
         {
             for (int i = 0; i < Providers.Count; i++)
+            {
+                if (Providers[i].SaveApiKeyToJson)
+                    continue;
+
                 Providers[i].ApiKey = EditorPrefs.GetString(ApiKeyPrefsPrefix + i, "");
+            }
         }
 
         void SaveApiKeys()
