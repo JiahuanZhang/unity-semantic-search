@@ -22,6 +22,7 @@ namespace SemanticSearch.Editor.UI
 
         bool _foldLLM = true;
         bool _foldWorkflow = true;
+        bool _foldFilter = true;
         bool _foldDatabase = true;
         int _indexedCount;
         int _pendingCount;
@@ -84,6 +85,8 @@ namespace SemanticSearch.Editor.UI
                     DrawRoleProviderSelector();
                     EditorGUILayout.Space(4);
                     DrawWorkflowControl();
+                    EditorGUILayout.Space(4);
+                    DrawAssetFilterRules();
                     EditorGUILayout.Space(4);
                     DrawDatabaseMaintenance();
                 }
@@ -269,10 +272,13 @@ namespace SemanticSearch.Editor.UI
             if (!string.IsNullOrEmpty(_llmTestStatus))
                 EditorGUILayout.HelpBox(_llmTestStatus, _llmTestStatusType);
 
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUI.indentLevel * 15);
             EditorGUI.BeginDisabledGroup(_isTestingLlm);
             if (GUILayout.Button(_isTestingLlm ? "Testing..." : "Test LLM", GUILayout.Height(22), GUILayout.Width(100)))
                 TestLlmConnectionAsync(new LLMProviderConfig(provider));
             EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
         }
 
         async void TestLlmConnectionAsync(LLMProviderConfig provider)
@@ -357,6 +363,56 @@ namespace SemanticSearch.Editor.UI
             }
         }
 
+        void DrawAssetFilterRules()
+        {
+            _foldFilter = EditorGUILayout.Foldout(_foldFilter, "Asset Filter Rules", true, EditorStyles.foldoutHeader);
+            if (!_foldFilter) return;
+
+            using (new EditorGUI.IndentLevelScope())
+            {
+                EditorGUI.BeginChangeCheck();
+
+                DrawFilterList("Include Rules (match at least one)", _settings.IncludeFilters);
+                EditorGUILayout.Space(4);
+                DrawFilterList("Exclude Rules (excluded if matched)", _settings.ExcludeFilters);
+
+                if (EditorGUI.EndChangeCheck())
+                    _settings.Save();
+
+                EditorGUILayout.Space(2);
+                EditorGUILayout.HelpBox(
+                    "Glob patterns: ** (recursive match), * (single level)\n" +
+                    "Examples: Assets/UI/**, *.png, Assets/Textures/Icons/*",
+                    MessageType.Info);
+            }
+        }
+
+        void DrawFilterList(string label, List<string> filters)
+        {
+            EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
+
+            int removeIdx = -1;
+            for (int i = 0; i < filters.Count; i++)
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    filters[i] = EditorGUILayout.TextField(filters[i]);
+                    if (GUILayout.Button("x", GUILayout.Width(20), GUILayout.Height(18)))
+                        removeIdx = i;
+                }
+            }
+
+            if (removeIdx >= 0)
+                filters.RemoveAt(removeIdx);
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Space(EditorGUI.indentLevel * 15);
+                if (GUILayout.Button("+ Add Rule", GUILayout.Width(100), GUILayout.Height(20)))
+                    filters.Add("");
+            }
+        }
+
         void DrawDatabaseMaintenance()
         {
             _foldDatabase = EditorGUILayout.Foldout(_foldDatabase, "Database Maintenance", true, EditorStyles.foldoutHeader);
@@ -377,6 +433,7 @@ namespace SemanticSearch.Editor.UI
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
+                    GUILayout.Space(EditorGUI.indentLevel * 15);
                     EditorGUI.BeginDisabledGroup(_isRunning);
 
                     if (GUILayout.Button("Scan & Update", GUILayout.Height(24)))
@@ -391,8 +448,12 @@ namespace SemanticSearch.Editor.UI
                         _cts?.Cancel();
                 }
 
-                if (GUILayout.Button("Open Database Folder", GUILayout.Height(22)))
-                    OpenDatabaseFolder();
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Space(EditorGUI.indentLevel * 15);
+                    if (GUILayout.Button("Open Database Folder", GUILayout.Height(22)))
+                        OpenDatabaseFolder();
+                }
             }
         }
 

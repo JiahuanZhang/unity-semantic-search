@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEditor;
 using SemanticSearch.Editor.Core.Database;
 using SemanticSearch.Editor.Core.Pipeline;
+using SemanticSearch.Editor.UI;
 using AssetStatus = SemanticSearch.Editor.Core.Database.AssetStatus;
 
 namespace SemanticSearch.Editor.Core.Watcher
@@ -81,6 +82,7 @@ namespace SemanticSearch.Editor.Core.Watcher
             var changedGuids = new List<string>();
             var guidMd5Map = forceReindex ? null : db.GetAllGuidMd5Map();
             var pendingRecords = new List<AssetRecord>(UpsertBatchSize);
+            var settings = SemanticSearchSettings.Instance;
 
             void FlushPendingRecords()
             {
@@ -101,6 +103,7 @@ namespace SemanticSearch.Editor.Core.Watcher
                 }
 
                 if (!IsSupported(assetPath)) continue;
+                if (!AssetFilter.IsIncluded(assetPath, settings.IncludeFilters, settings.ExcludeFilters)) continue;
 
                 var guid = AssetDatabase.AssetPathToGUID(assetPath);
                 if (string.IsNullOrEmpty(guid)) continue;
@@ -152,17 +155,18 @@ namespace SemanticSearch.Editor.Core.Watcher
                 pendingRecords.Clear();
             }
 
+            var settings = SemanticSearchSettings.Instance;
             foreach (var guid in guids)
             {
                 var assetPath = AssetDatabase.GUIDToAssetPath(guid);
 
-                if (string.IsNullOrEmpty(assetPath) || IsBlacklisted(assetPath))
+                if (string.IsNullOrEmpty(assetPath) || !IsSupported(assetPath))
                 {
                     processed++;
                     continue;
                 }
 
-                if (!IsSupported(assetPath))
+                if (!AssetFilter.IsIncluded(assetPath, settings.IncludeFilters, settings.ExcludeFilters))
                 {
                     processed++;
                     continue;

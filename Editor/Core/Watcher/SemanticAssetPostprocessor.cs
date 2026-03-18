@@ -20,7 +20,10 @@ namespace SemanticSearch.Editor.Core.Watcher
 
         private static bool ShouldProcess(string path)
         {
-            return AssetScanner.IsSupported(path) && !AssetScanner.IsBlacklisted(path);
+            if (!AssetScanner.IsSupported(path))
+                return false;
+            var s = SemanticSearchSettings.Instance;
+            return AssetFilter.IsIncluded(path, s.IncludeFilters, s.ExcludeFilters);
         }
 
         private static SemanticSearchDB OpenDB()

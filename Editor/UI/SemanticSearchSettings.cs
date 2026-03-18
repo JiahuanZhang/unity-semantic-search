@@ -15,6 +15,9 @@ namespace SemanticSearch.Editor.UI
         public bool AutoIndexOnImport = false;
         public int MaxConcurrent = 3;
 
+        public List<string> IncludeFilters = new List<string> { "Assets/**" };
+        public List<string> ExcludeFilters = new List<string>();
+
         [NonSerialized] public bool IsAdmin;
         public int AdminProviderIndex;
         public int UserProviderIndex;
@@ -116,6 +119,11 @@ namespace SemanticSearch.Editor.UI
             ActiveProviderIndex = Mathf.Clamp(ActiveProviderIndex, 0, Providers.Count - 1);
             AdminProviderIndex = Mathf.Clamp(AdminProviderIndex, 0, Providers.Count - 1);
             UserProviderIndex = Mathf.Clamp(UserProviderIndex, 0, Providers.Count - 1);
+
+            if (IncludeFilters == null)
+                IncludeFilters = new List<string> { "Assets/**" };
+            if (ExcludeFilters == null)
+                ExcludeFilters = new List<string>();
         }
 
         public void Save()

@@ -8,6 +8,7 @@
 - **多 Provider 支持**：可配置多个 LLM 服务商，一键切换
 - **管理员模式**：区分管理员与普通用户角色，各自绑定独立的 LLM Provider；管理员可见 Workflow Control 和 Database Maintenance 面板
 - **多 API 格式**：支持 OpenAI 兼容格式（阿里 DashScope、OpenAI、Ollama 等）和 Google Gemini 原生 API
+- **资产筛选规则**：支持 Include/Exclude Glob 模式，精确控制哪些资产参与索引（Admin 模式下配置）
 - **自动索引**：资产导入时自动入库并触发索引（默认关闭）
 - **手动扫描**：一键扫描全项目并更新索引
 - **已索引资源浏览**：通过 `Window > Semantic Search > Asset View` 打开独立窗口，浏览所有已索引资源，支持按路径/描述搜索、按状态过滤、缩略图预览
@@ -86,7 +87,11 @@
 6. 点击 **Test LLM** 测试当前 Provider 连通性（基于 Embedding 请求）
 7. 在 **Role Provider Assignment** 中为管理员和普通用户分别指定使用的 Provider
 8. 如需自动索引，开启 **Auto-Index On Import**（默认关闭，开启后新导入资产会自动从 Pending 进入 Indexed）
-9. 点击 **Scan & Update** 开始索引
+9. 在 **Asset Filter Rules** 中配置包含/排除规则，控制哪些资产参与 Embedding：
+   - **Include Rules**：资产路径须匹配至少一条规则才会被索引，默认 `Assets/**`（全部包含）
+   - **Exclude Rules**：匹配的资产将被排除（优先级高于 Include）
+   - 支持 Glob 模式：`**`（递归匹配）、`*`（单层匹配），例如 `Assets/UI/**`、`*.png`、`Assets/Temp/**`
+10. 点击 **Scan & Update** 开始索引
 9. 点击 **Open Asset View** 或通过菜单 `Window > Semantic Search > Asset View` 打开资源浏览窗口
 10. 在 Asset View 窗口中可按路径/描述搜索、按状态筛选，勾选资源后点击 **Re-index Selected** 重新生成描述和向量
 
