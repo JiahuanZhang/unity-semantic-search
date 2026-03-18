@@ -11,6 +11,7 @@ namespace SemanticSearch.Editor.Core.Watcher
     {
         private static readonly string[] SupportedExtensions = { ".png", ".jpg", ".jpeg", ".tga", ".prefab" };
         private static readonly string[] BlacklistPrefixes = { "Packages/", "Library/" };
+        const int UpsertBatchSize = 128;
 
         public static string[] GetSupportedExtensions() => SupportedExtensions;
 
@@ -63,6 +64,15 @@ namespace SemanticSearch.Editor.Core.Watcher
         {
             var changedGuids = new List<string>();
             var guidMd5Map = forceReindex ? null : db.GetAllGuidMd5Map();
+            var pendingRecords = new List<AssetRecord>(UpsertBatchSize);
+
+            void FlushPendingRecords()
+            {
+                if (pendingRecords.Count == 0)
+                    return;
+                db.UpsertBatch(pendingRecords);
+                pendingRecords.Clear();
+            }
 
             foreach (var assetPath in assetPaths)
             {
@@ -92,7 +102,7 @@ namespace SemanticSearch.Editor.Core.Watcher
                     if (existingMd5 != null && existingMd5 == md5) continue;
                 }
 
-                db.Upsert(new AssetRecord
+                pendingRecords.Add(new AssetRecord
                 {
                     Guid = guid,
                     AssetPath = assetPath,
@@ -101,8 +111,12 @@ namespace SemanticSearch.Editor.Core.Watcher
                     UpdatedAt = DateTime.UtcNow.ToString("o")
                 });
                 changedGuids.Add(guid);
+
+                if (pendingRecords.Count >= UpsertBatchSize)
+                    FlushPendingRecords();
             }
 
+            FlushPendingRecords();
             return changedGuids;
         }
 
@@ -113,6 +127,15 @@ namespace SemanticSearch.Editor.Core.Watcher
             int processed = 0;
 
             var guidMd5Map = db.GetAllGuidMd5Map();
+            var pendingRecords = new List<AssetRecord>(UpsertBatchSize);
+
+            void FlushPendingRecords()
+            {
+                if (pendingRecords.Count == 0)
+                    return;
+                db.UpsertBatch(pendingRecords);
+                pendingRecords.Clear();
+            }
 
             foreach (var guid in guids)
             {
@@ -144,7 +167,7 @@ namespace SemanticSearch.Editor.Core.Watcher
 
                 if (existingMd5 == null || existingMd5 != md5)
                 {
-                    db.Upsert(new AssetRecord
+                    pendingRecords.Add(new AssetRecord
                     {
                         Guid = guid,
                         AssetPath = assetPath,
@@ -153,12 +176,16 @@ namespace SemanticSearch.Editor.Core.Watcher
                         UpdatedAt = DateTime.UtcNow.ToString("o")
                     });
                     changedGuids.Add(guid);
+
+                    if (pendingRecords.Count >= UpsertBatchSize)
+                        FlushPendingRecords();
                 }
 
                 processed++;
                 progressCallback?.Invoke((float)processed / total);
             }
 
+            FlushPendingRecords();
             return changedGuids;
         }
     }

@@ -6,6 +6,7 @@ using UnityEngine;
 using SemanticSearch.Editor.Core.Database;
 using SemanticSearch.Editor.Core.LLM;
 using SemanticSearch.Editor.Core.Search;
+using SemanticSearch.Editor.Core.Utils;
 using Object = UnityEngine.Object;
 
 namespace SemanticSearch.Editor.UI
@@ -19,8 +20,10 @@ namespace SemanticSearch.Editor.UI
         float _searchTime;
         Vector2 _scrollPosition;
         readonly Dictionary<string, Texture2D> _thumbnailCache = new Dictionary<string, Texture2D>();
+        readonly Queue<string> _thumbnailOrder = new Queue<string>();
 
         const int PageSize = 20;
+        const int ThumbnailCacheLimit = 200;
         int _displayCount = PageSize;
 
         GUIStyle _boldLabel;
@@ -69,6 +72,11 @@ namespace SemanticSearch.Editor.UI
             DrawSearchBar();
             DrawStatusLine();
             DrawResults();
+        }
+
+        void OnDisable()
+        {
+            ClearThumbnailCache();
         }
 
         void DrawSearchBar()
@@ -198,12 +206,14 @@ namespace SemanticSearch.Editor.UI
             _isSearching = true;
             _results.Clear();
             _displayCount = PageSize;
+            ClearThumbnailCache();
             Repaint();
 
             SemanticSearchDB db = null;
             try
             {
                 var sw = Stopwatch.StartNew();
+                long managedBefore = GC.GetTotalMemory(false);
                 var config = LLMApiConfig.Load();
                 db = new SemanticSearchDB();
                 db.Open();
@@ -214,21 +224,29 @@ namespace SemanticSearch.Editor.UI
                 _results = await engine.SearchAsync(queryText);
                 sw.Stop();
                 _searchTime = (float)sw.Elapsed.TotalSeconds;
+
+                long managedAfter = GC.GetTotalMemory(false);
+                long managedDelta = managedAfter - managedBefore;
+                UnityEngine.Debug.Log(
+                    $"[SemanticSearch] Search perf: query=\"{queryText}\", " +
+                    $"results={_results.Count}, elapsed={_searchTime:F3}s, " +
+                    $"managedBefore={FormatUtils.FormatBytes(managedBefore)}, managedAfter={FormatUtils.FormatBytes(managedAfter)}, " +
+                    $"managedDelta={FormatUtils.FormatBytes(managedDelta)}.");
             }
             catch (Exception ex)
             {
                 try { UnityEngine.Debug.LogError($"[SemanticSearch] Search failed: {ex.Message}"); }
-                catch (Exception) { }
+                catch (Exception ex2) { UnityEngine.Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
             }
             finally
             {
                 try
                 {
-                    db?.Dispose();
+                    db?.Close();
                     _isSearching = false;
                     Repaint();
                 }
-                catch (Exception) { }
+                catch (Exception ex2) { UnityEngine.Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
             }
         }
 
@@ -244,7 +262,25 @@ namespace SemanticSearch.Editor.UI
 
             var tex = asset as Texture2D ?? AssetPreview.GetMiniThumbnail(asset);
             _thumbnailCache[assetPath] = tex;
+            _thumbnailOrder.Enqueue(assetPath);
+            TrimThumbnailCache();
             return tex;
         }
+
+        void TrimThumbnailCache()
+        {
+            while (_thumbnailCache.Count > ThumbnailCacheLimit && _thumbnailOrder.Count > 0)
+            {
+                var oldest = _thumbnailOrder.Dequeue();
+                _thumbnailCache.Remove(oldest);
+            }
+        }
+
+        void ClearThumbnailCache()
+        {
+            _thumbnailCache.Clear();
+            _thumbnailOrder.Clear();
+        }
+
     }
 }

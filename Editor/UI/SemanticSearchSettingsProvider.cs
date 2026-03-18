@@ -8,7 +8,9 @@ using UnityEditor;
 using SemanticSearch.Editor.Core.Database;
 using SemanticSearch.Editor.Core.LLM;
 using SemanticSearch.Editor.Core.Pipeline;
+using SemanticSearch.Editor.Core.Utils;
 using SemanticSearch.Editor.Core.Watcher;
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace SemanticSearch.Editor.UI
 {
@@ -300,21 +302,28 @@ namespace SemanticSearch.Editor.UI
         {
             _isRunning = true;
             _statusText = "Scanning assets...";
+            _cts?.Dispose();
             _cts = new CancellationTokenSource();
 
             SemanticSearchDB db = null;
             try
             {
+                var totalSw = Stopwatch.StartNew();
+                long managedBefore = GC.GetTotalMemory(false);
+
                 db = new SemanticSearchDB();
                 db.Open();
 
-                AssetScanner.ScanAll(db, progress =>
+                var scanSw = Stopwatch.StartNew();
+                var changedGuids = AssetScanner.ScanAll(db, progress =>
                 {
                     _statusText = $"Scanning... {progress:P0}";
                 });
+                scanSw.Stop();
 
                 RefreshCounts(db);
                 _statusText = $"Indexing {_pendingCount} assets...";
+                int pendingBeforeIndex = _pendingCount;
 
                 var config = _settings.ToLLMApiConfig();
                 var pipeline = new IndexPipeline(db, config);
@@ -324,10 +333,29 @@ namespace SemanticSearch.Editor.UI
                     RefreshSettingsWindow();
                 });
 
-                await pipeline.IndexBatchAsync(progress, _cts.Token);
+                var indexSw = Stopwatch.StartNew();
+                var batchResult = await pipeline.IndexBatchAsync(progress, _cts.Token);
+                indexSw.Stop();
 
                 RefreshCounts(db);
-                _statusText = "Done.";
+                totalSw.Stop();
+
+                long managedAfter = GC.GetTotalMemory(false);
+                long managedDelta = managedAfter - managedBefore;
+                double indexThroughput = indexSw.Elapsed.TotalSeconds > 0.01
+                    ? batchResult.Completed / indexSw.Elapsed.TotalSeconds
+                    : 0d;
+
+                _statusText =
+                    $"Done. Scan {scanSw.Elapsed.TotalSeconds:F2}s, " +
+                    $"Index {indexSw.Elapsed.TotalSeconds:F2}s ({indexThroughput:F2} assets/s).";
+
+                Debug.Log(
+                    $"[SemanticSearch] Scan+Index perf: changed={changedGuids.Count}, pendingBeforeIndex={pendingBeforeIndex}, " +
+                    $"indexed={batchResult.Succeeded}, failed={batchResult.Failed}, skipped={batchResult.Skipped}, " +
+                    $"scanTime={scanSw.Elapsed.TotalSeconds:F2}s, indexTime={indexSw.Elapsed.TotalSeconds:F2}s, " +
+                    $"totalTime={totalSw.Elapsed.TotalSeconds:F2}s, managedBefore={FormatUtils.FormatBytes(managedBefore)}, " +
+                    $"managedAfter={FormatUtils.FormatBytes(managedAfter)}, managedDelta={FormatUtils.FormatBytes(managedDelta)}.");
             }
             catch (OperationCanceledException)
             {
@@ -340,7 +368,7 @@ namespace SemanticSearch.Editor.UI
                     _statusText = $"Error: {e.Message}";
                     Debug.LogError($"[SemanticSearch] {e}");
                 }
-                catch (Exception) { }
+                catch (Exception ex2) { Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
             }
             finally
             {
@@ -350,7 +378,7 @@ namespace SemanticSearch.Editor.UI
                     _isRunning = false;
                     RefreshSettingsWindow();
                 }
-                catch (Exception) { }
+                catch (Exception ex2) { Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
             }
         }
 
@@ -424,5 +452,6 @@ namespace SemanticSearch.Editor.UI
         {
             SettingsService.RepaintAllSettingsWindow();
         }
+
     }
 }

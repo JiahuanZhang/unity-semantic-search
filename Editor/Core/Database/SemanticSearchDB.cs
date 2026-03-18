@@ -22,6 +22,12 @@ namespace SemanticSearch.Editor.Core.Database
                 updated_at    TEXT NOT NULL
             );";
 
+        private const string CreateIndexesSql = @"
+            CREATE INDEX IF NOT EXISTS idx_assets_status ON assets(status);
+            CREATE INDEX IF NOT EXISTS idx_assets_asset_path ON assets(asset_path);
+            CREATE INDEX IF NOT EXISTS idx_assets_updated_at ON assets(updated_at);
+            CREATE INDEX IF NOT EXISTS idx_assets_vector_notnull ON assets(updated_at) WHERE vector IS NOT NULL;";
+
         private const string UpsertSql = @"
             INSERT OR REPLACE INTO assets
                 (guid, asset_path, md5, caption, vector, vector_dim, status, updated_at)
@@ -92,6 +98,12 @@ namespace SemanticSearch.Editor.Core.Database
                     cmd.CommandText = CreateTableSql;
                     cmd.ExecuteNonQuery();
                 }
+
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.CommandText = CreateIndexesSql;
+                    cmd.ExecuteNonQuery();
+                }
             }
         }
 
@@ -100,14 +112,11 @@ namespace SemanticSearch.Editor.Core.Database
             lock (_lock)
             {
                 ThrowIfNotOpen();
-                using (var tx = _conn.BeginTransaction())
                 using (var cmd = _conn.CreateCommand())
                 {
-                    cmd.Transaction = tx;
                     cmd.CommandText = UpsertSql;
                     BindRecordParams(cmd, record);
                     cmd.ExecuteNonQuery();
-                    tx.Commit();
                 }
             }
         }
@@ -191,6 +200,74 @@ namespace SemanticSearch.Editor.Core.Database
             }
         }
 
+        public List<AssetRecord> GetAllAssetSummaries()
+        {
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+                var list = new List<AssetRecord>();
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.CommandText =
+                        "SELECT guid, asset_path, md5, caption, vector_dim, status, updated_at FROM assets ORDER BY asset_path;";
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            list.Add(ReadSummaryRecord(reader));
+                    }
+                }
+                return list;
+            }
+        }
+
+        public int CountAssetSummaries(string filter, AssetStatus? status)
+        {
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+                        SELECT COUNT(*)
+                        FROM assets
+                        WHERE (@status IS NULL OR status = @status)
+                          AND (@filter IS NULL OR asset_path LIKE @filter ESCAPE '\' OR caption LIKE @filter ESCAPE '\');";
+                    cmd.Parameters.AddWithValue("@status", status.HasValue ? (object)status.Value.ToString() : DBNull.Value);
+                    cmd.Parameters.AddWithValue("@filter", BuildLikeFilter(filter));
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
+        }
+
+        public List<AssetRecord> QueryAssetSummaries(string filter, AssetStatus? status, int limit, int offset)
+        {
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+                var list = new List<AssetRecord>();
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+                        SELECT guid, asset_path, md5, caption, vector_dim, status, updated_at
+                        FROM assets
+                        WHERE (@status IS NULL OR status = @status)
+                          AND (@filter IS NULL OR asset_path LIKE @filter ESCAPE '\' OR caption LIKE @filter ESCAPE '\')
+                        ORDER BY asset_path
+                        LIMIT @limit OFFSET @offset;";
+                    cmd.Parameters.AddWithValue("@status", status.HasValue ? (object)status.Value.ToString() : DBNull.Value);
+                    cmd.Parameters.AddWithValue("@filter", BuildLikeFilter(filter));
+                    cmd.Parameters.AddWithValue("@limit", Math.Max(1, limit));
+                    cmd.Parameters.AddWithValue("@offset", Math.Max(0, offset));
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            list.Add(ReadSummaryRecord(reader));
+                    }
+                }
+                return list;
+            }
+        }
+
         public void ResetToPending(List<string> guids)
         {
             if (guids == null || guids.Count == 0) return;
@@ -228,11 +305,11 @@ namespace SemanticSearch.Editor.Core.Database
                 var list = new List<AssetRecord>();
                 using (var cmd = _conn.CreateCommand())
                 {
-                    cmd.CommandText = "SELECT * FROM assets WHERE status = 'Pending';";
+                    cmd.CommandText = "SELECT guid, asset_path, md5, caption, vector_dim, status, updated_at FROM assets WHERE status = 'Pending';";
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
-                            list.Add(ReadRecord(reader));
+                            list.Add(ReadSummaryRecord(reader));
                     }
                 }
                 return list;
@@ -265,6 +342,79 @@ namespace SemanticSearch.Editor.Core.Database
             }
         }
 
+        public (int count, string maxUpdatedAt) GetVectorSnapshotSignature()
+        {
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.CommandText =
+                        "SELECT COUNT(*), COALESCE(MAX(updated_at), '') FROM assets WHERE vector IS NOT NULL;";
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (!reader.Read())
+                            return (0, "");
+
+                        int count = reader.GetInt32(0);
+                        string maxUpdatedAt = reader.GetString(1);
+                        return (count, maxUpdatedAt);
+                    }
+                }
+            }
+        }
+
+        public Dictionary<string, AssetRecord> GetAssetSummariesByGuids(IReadOnlyList<string> guids)
+        {
+            var result = new Dictionary<string, AssetRecord>();
+            if (guids == null || guids.Count == 0)
+                return result;
+
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+
+                const int maxParamsPerBatch = 500;
+                int start = 0;
+                while (start < guids.Count)
+                {
+                    int count = Math.Min(maxParamsPerBatch, guids.Count - start);
+                    using (var cmd = _conn.CreateCommand())
+                    {
+                        var placeholders = new List<string>(count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            string paramName = "@g" + i;
+                            placeholders.Add(paramName);
+                            cmd.Parameters.AddWithValue(paramName, guids[start + i]);
+                        }
+
+                        cmd.CommandText =
+                            $"SELECT guid, asset_path, caption FROM assets WHERE guid IN ({string.Join(",", placeholders)});";
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var guid = reader.GetString(0);
+                                var record = new AssetRecord
+                                {
+                                    Guid = guid,
+                                    AssetPath = reader.GetString(1),
+                                    Caption = reader.IsDBNull(2) ? null : reader.GetString(2)
+                                };
+                                result[guid] = record;
+                            }
+                        }
+                    }
+
+                    start += count;
+                }
+            }
+
+            return result;
+        }
+
         public void Delete(string guid)
         {
             lock (_lock)
@@ -277,6 +427,29 @@ namespace SemanticSearch.Editor.Core.Database
                     cmd.CommandText = "DELETE FROM assets WHERE guid = @guid;";
                     cmd.Parameters.AddWithValue("@guid", guid);
                     cmd.ExecuteNonQuery();
+                    tx.Commit();
+                }
+            }
+        }
+
+        public void DeleteBatch(List<string> guids)
+        {
+            if (guids == null || guids.Count == 0) return;
+
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+                using (var tx = _conn.BeginTransaction())
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = "DELETE FROM assets WHERE guid = @guid;";
+                    cmd.Parameters.Add(new SqliteParameter("@guid", System.Data.DbType.String));
+                    foreach (var guid in guids)
+                    {
+                        cmd.Parameters["@guid"].Value = guid;
+                        cmd.ExecuteNonQuery();
+                    }
                     tx.Commit();
                 }
             }
@@ -394,6 +567,41 @@ namespace SemanticSearch.Editor.Core.Database
             }
 
             return record;
+        }
+
+        private static AssetRecord ReadSummaryRecord(SqliteDataReader reader)
+        {
+            var record = new AssetRecord
+            {
+                Guid = reader.GetString(reader.GetOrdinal("guid")),
+                AssetPath = reader.GetString(reader.GetOrdinal("asset_path")),
+                Md5 = reader.GetString(reader.GetOrdinal("md5")),
+                Caption = reader.IsDBNull(reader.GetOrdinal("caption"))
+                    ? null : reader.GetString(reader.GetOrdinal("caption")),
+                VectorDim = reader.GetInt32(reader.GetOrdinal("vector_dim")),
+                UpdatedAt = reader.GetString(reader.GetOrdinal("updated_at")),
+            };
+
+            var statusStr = reader.GetString(reader.GetOrdinal("status"));
+            record.Status = Enum.TryParse<AssetStatus>(statusStr, out var status)
+                ? status
+                : AssetStatus.Pending;
+            return record;
+        }
+
+        static object BuildLikeFilter(string filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter))
+                return DBNull.Value;
+            return "%" + EscapeLike(filter.Trim()) + "%";
+        }
+
+        static string EscapeLike(string input)
+        {
+            return input
+                .Replace("\\", "\\\\")
+                .Replace("%", "\\%")
+                .Replace("_", "\\_");
         }
     }
 }

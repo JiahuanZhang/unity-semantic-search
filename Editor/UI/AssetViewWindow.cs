@@ -15,13 +15,18 @@ namespace SemanticSearch.Editor.UI
     public class AssetViewWindow : EditorWindow
     {
         List<AssetRecord> _allRecords = new List<AssetRecord>();
+        List<AssetRecord> _filteredRecords = new List<AssetRecord>();
         readonly HashSet<string> _selectedGuids = new HashSet<string>();
         string _assetFilter = "";
         string _statusFilter = "All";
         Vector2 _assetListScroll;
         const int PageSize = 50;
+        const int DbLoadPageSize = 500;
         int _displayCount = PageSize;
+        bool _filterDirty = true;
         readonly Dictionary<string, Texture2D> _thumbnailCache = new Dictionary<string, Texture2D>();
+        readonly Queue<string> _thumbnailOrder = new Queue<string>();
+        const int ThumbnailCacheLimit = 400;
 
         bool _isRunning;
         string _statusText;
@@ -47,6 +52,12 @@ namespace SemanticSearch.Editor.UI
             RefreshAssetList();
         }
 
+        void OnDisable()
+        {
+            _cts?.Cancel();
+            ClearThumbnailCache();
+        }
+
         void OnGUI()
         {
             InitStyles();
@@ -70,6 +81,7 @@ namespace SemanticSearch.Editor.UI
                 {
                     _assetFilter = newFilter;
                     _displayCount = PageSize;
+                    _filterDirty = true;
                 }
 
                 var statusOptions = new[] { "All", "Indexed", "Pending", "Error" };
@@ -80,6 +92,7 @@ namespace SemanticSearch.Editor.UI
                 {
                     _statusFilter = statusOptions[newIdx];
                     _displayCount = PageSize;
+                    _filterDirty = true;
                 }
             }
         }
@@ -249,6 +262,9 @@ namespace SemanticSearch.Editor.UI
 
         List<AssetRecord> GetFilteredRecords()
         {
+            if (!_filterDirty)
+                return _filteredRecords;
+
             IEnumerable<AssetRecord> result = _allRecords;
 
             if (_statusFilter != "All")
@@ -259,13 +275,15 @@ namespace SemanticSearch.Editor.UI
 
             if (!string.IsNullOrEmpty(_assetFilter))
             {
-                var filter = _assetFilter.ToLowerInvariant();
+                var filter = _assetFilter.Trim();
                 result = result.Where(r =>
-                    (r.AssetPath != null && r.AssetPath.ToLowerInvariant().Contains(filter)) ||
-                    (r.Caption != null && r.Caption.ToLowerInvariant().Contains(filter)));
+                    ContainsIgnoreCase(r.AssetPath, filter) ||
+                    ContainsIgnoreCase(r.Caption, filter));
             }
 
-            return result.ToList();
+            _filteredRecords = result.ToList();
+            _filterDirty = false;
+            return _filteredRecords;
         }
 
         void RefreshAssetList()
@@ -275,12 +293,27 @@ namespace SemanticSearch.Editor.UI
             {
                 db = new SemanticSearchDB();
                 db.Open();
-                _allRecords = db.GetAll();
+                _allRecords = new List<AssetRecord>();
+                int offset = 0;
+                while (true)
+                {
+                    var page = db.QueryAssetSummaries(filter: null, status: null, limit: DbLoadPageSize, offset: offset);
+                    if (page.Count == 0)
+                        break;
+
+                    _allRecords.AddRange(page);
+                    offset += page.Count;
+                    if (page.Count < DbLoadPageSize)
+                        break;
+                }
+                _filterDirty = true;
                 _statusText = null;
             }
             catch (Exception e)
             {
                 _allRecords = new List<AssetRecord>();
+                _filteredRecords = new List<AssetRecord>();
+                _filterDirty = false;
                 _statusText = $"Load failed: {e.Message}";
                 Debug.LogError($"[SemanticSearch] Asset view refresh failed: {e}");
             }
@@ -288,6 +321,8 @@ namespace SemanticSearch.Editor.UI
             {
                 db?.Close();
             }
+
+            ClearThumbnailCache();
             _displayCount = PageSize;
             Repaint();
         }
@@ -299,6 +334,7 @@ namespace SemanticSearch.Editor.UI
 
             _isRunning = true;
             _statusText = $"Re-indexing {guidsToReindex.Count} assets...";
+            _cts?.Dispose();
             _cts = new CancellationTokenSource();
 
             SemanticSearchDB db = null;
@@ -319,8 +355,8 @@ namespace SemanticSearch.Editor.UI
 
                 await pipeline.IndexBatchAsync(progress, _cts.Token);
 
-                _allRecords = db.GetAll();
                 _selectedGuids.Clear();
+                RefreshAssetList();
                 _statusText = "Re-index done.";
             }
             catch (OperationCanceledException)
@@ -334,7 +370,7 @@ namespace SemanticSearch.Editor.UI
                     _statusText = $"Error: {e.Message}";
                     Debug.LogError($"[SemanticSearch] {e}");
                 }
-                catch (Exception) { }
+                catch (Exception ex2) { Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
             }
             finally
             {
@@ -344,7 +380,7 @@ namespace SemanticSearch.Editor.UI
                     _isRunning = false;
                     Repaint();
                 }
-                catch (Exception) { }
+                catch (Exception ex2) { Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
             }
         }
 
@@ -363,10 +399,9 @@ namespace SemanticSearch.Editor.UI
             {
                 db = new SemanticSearchDB();
                 db.Open();
-                foreach (var guid in guidsToDelete)
-                    db.Delete(guid);
+                db.DeleteBatch(guidsToDelete);
                 _selectedGuids.Clear();
-                _allRecords = db.GetAll();
+                RefreshAssetList();
                 _statusText = $"Deleted {guidsToDelete.Count} records.";
             }
             catch (Exception e)
@@ -391,7 +426,31 @@ namespace SemanticSearch.Editor.UI
 
             var tex = asset as Texture2D ?? AssetPreview.GetMiniThumbnail(asset);
             _thumbnailCache[assetPath] = tex;
+            _thumbnailOrder.Enqueue(assetPath);
+            TrimThumbnailCache();
             return tex;
+        }
+
+        void TrimThumbnailCache()
+        {
+            while (_thumbnailCache.Count > ThumbnailCacheLimit && _thumbnailOrder.Count > 0)
+            {
+                var oldest = _thumbnailOrder.Dequeue();
+                _thumbnailCache.Remove(oldest);
+            }
+        }
+
+        void ClearThumbnailCache()
+        {
+            _thumbnailCache.Clear();
+            _thumbnailOrder.Clear();
+        }
+
+        static bool ContainsIgnoreCase(string text, string value)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(value))
+                return false;
+            return text.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         void InitStyles()
