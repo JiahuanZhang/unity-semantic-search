@@ -137,6 +137,15 @@
 | `AssetProcessorRegistry` | 注册并管理所有处理器，根据文件扩展名自动路由 |
 | `IndexPipeline` | 索引流水线，通过 Registry 获取对应处理器执行索引 |
 
+### 向量化文本增强（文件名上下文）
+
+为降低视觉识别误差，图片与预制体在索引时会将**文件名**作为辅助上下文注入：
+
+- Vision 阶段：在提示词中追加文件名提示（辅助信息，不覆盖视觉内容）
+- Embedding 阶段：将 `asset_type + file_name + caption` 组合后再生成向量
+
+这样可提升命名语义较强资源（如角色、道具、UI 组件）在检索中的稳定性与召回率。
+
 扩展新资源类型只需：
 1. 实现 `IAssetProcessor` 接口
 2. 在 `AssetProcessorRegistry` 构造函数中注册

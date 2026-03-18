@@ -42,10 +42,12 @@ namespace SemanticSearch.Editor.Core.Pipeline
 
             ct.ThrowIfCancellationRequested();
 
-            var caption = await _vlClient.RequestCaptionAsync(imageBytes);
+            var prompt = AssetTextBuilder.BuildVisionPrompt(assetPath, "image");
+            var caption = await _vlClient.RequestCaptionAsync(imageBytes, prompt);
             ct.ThrowIfCancellationRequested();
 
-            var vector = await _embeddingClient.RequestEmbeddingAsync(caption);
+            var embeddingText = AssetTextBuilder.BuildEmbeddingText(assetPath, caption, "image");
+            var vector = await _embeddingClient.RequestEmbeddingAsync(embeddingText);
             ct.ThrowIfCancellationRequested();
 
             if (vector == null || vector.Length == 0)
