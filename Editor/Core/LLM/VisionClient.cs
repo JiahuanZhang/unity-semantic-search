@@ -9,7 +9,9 @@ namespace SemanticSearch.Editor.Core.LLM
         readonly LLMHttpClient _http;
 
         const string DefaultPrompt =
-            "请用中文简要描述这张图片的内容、风格、主要颜色和可能的用途，控制在100字以内。";
+    "Please describe this image in both Chinese and English. "
+    + "Include content, style, main colors, and possible usage. "
+    + "Format: [CN] 中文描述 [EN] English description. Keep each under 80 words.";
 
         public VisionClient(LLMApiConfig config, LLMHttpClient httpClient)
         {

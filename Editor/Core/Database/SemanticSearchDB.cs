@@ -172,6 +172,54 @@ namespace SemanticSearch.Editor.Core.Database
             }
         }
 
+        public List<AssetRecord> GetAll()
+        {
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+                var list = new List<AssetRecord>();
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT * FROM assets ORDER BY asset_path;";
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            list.Add(ReadRecord(reader));
+                    }
+                }
+                return list;
+            }
+        }
+
+        public void ResetToPending(List<string> guids)
+        {
+            if (guids == null || guids.Count == 0) return;
+
+            lock (_lock)
+            {
+                ThrowIfNotOpen();
+                using (var tx = _conn.BeginTransaction())
+                {
+                    using (var cmd = _conn.CreateCommand())
+                    {
+                        cmd.Transaction = tx;
+                        cmd.CommandText = "UPDATE assets SET status = 'Pending', updated_at = @time WHERE guid = @guid;";
+                        cmd.Parameters.Add(new SqliteParameter("@guid", System.Data.DbType.String));
+                        cmd.Parameters.Add(new SqliteParameter("@time", System.Data.DbType.String));
+
+                        var now = DateTime.UtcNow.ToString("o");
+                        foreach (var guid in guids)
+                        {
+                            cmd.Parameters["@guid"].Value = guid;
+                            cmd.Parameters["@time"].Value = now;
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
         public List<AssetRecord> GetAllPending()
         {
             lock (_lock)
