@@ -77,77 +77,19 @@ namespace SemanticSearch.Editor.UI
 
             using (new EditorGUI.IndentLevelScope())
             {
-                DrawAdminToggle();
-                EditorGUILayout.Space(4);
                 DrawLLMConfiguration();
-
-                if (_settings.IsAdmin)
-                {
-                    EditorGUILayout.Space(4);
-                    DrawRoleProviderSelector();
-                    EditorGUILayout.Space(4);
-                    DrawPromptConfiguration();
-                    EditorGUILayout.Space(4);
-                    DrawWorkflowControl();
-                    EditorGUILayout.Space(4);
-                    DrawAssetFilterRules();
-                    EditorGUILayout.Space(4);
-                    DrawDatabaseMaintenance();
-                }
+                EditorGUILayout.Space(4);
+                DrawPromptConfiguration();
+                EditorGUILayout.Space(4);
+                DrawWorkflowControl();
+                EditorGUILayout.Space(4);
+                DrawAssetFilterRules();
+                EditorGUILayout.Space(4);
+                DrawDatabaseMaintenance();
             }
 
             EditorGUILayout.Space(8);
             DrawAssetViewShortcut();
-        }
-
-        void DrawAdminToggle()
-        {
-            EditorGUI.BeginChangeCheck();
-            bool newValue = EditorGUILayout.Toggle(L10n.AdminMode, _settings.IsAdmin);
-            if (EditorGUI.EndChangeCheck() && newValue != _settings.IsAdmin)
-            {
-                if (newValue)
-                {
-                    if (EditorUtility.DisplayDialog(L10n.AdminModeDialogTitle,
-                            L10n.AdminModeWarning,
-                            L10n.Confirm, L10n.Cancel))
-                    {
-                        _settings.IsAdmin = true;
-                        _settings.Save();
-                    }
-                }
-                else
-                {
-                    _settings.IsAdmin = false;
-                    _settings.Save();
-                }
-            }
-        }
-
-        void DrawRoleProviderSelector()
-        {
-            var names = _settings.Providers.Select(p => p.Name).ToArray();
-            if (names.Length == 0) return;
-
-            EditorGUILayout.LabelField(L10n.RoleProviderAssignment, EditorStyles.boldLabel);
-            using (new EditorGUI.IndentLevelScope())
-            {
-                EditorGUI.BeginChangeCheck();
-
-                _settings.AdminProviderIndex = EditorGUILayout.Popup(
-                    L10n.AdminProvider, _settings.AdminProviderIndex, names);
-                _settings.UserProviderIndex = EditorGUILayout.Popup(
-                    L10n.UserProvider, _settings.UserProviderIndex, names);
-
-                var current = _settings.IsAdmin ? L10n.RoleAdmin : L10n.RoleUser;
-                var currentProvider = _settings.GetRoleProvider();
-                EditorGUILayout.HelpBox(
-                    L10n.CurrentRoleInfo(current, currentProvider.Name),
-                    MessageType.Info);
-
-                if (EditorGUI.EndChangeCheck())
-                    _settings.Save();
-            }
         }
 
         void DrawLLMConfiguration()
@@ -157,16 +99,9 @@ namespace SemanticSearch.Editor.UI
 
             using (new EditorGUI.IndentLevelScope())
             {
-                if (_settings.IsAdmin)
-                {
-                    DrawProviderSelector();
-                    EditorGUILayout.Space(4);
-                    DrawActiveProviderFields();
-                }
-                else
-                {
-                    DrawUserProviderFields();
-                }
+                DrawProviderSelector();
+                EditorGUILayout.Space(4);
+                DrawActiveProviderFields();
             }
         }
 
@@ -223,33 +158,6 @@ namespace SemanticSearch.Editor.UI
                 ApplyProviderTypeDefaults(provider);
 
             DrawApiKeyFieldWithPersistToggle(provider, () => _settings.SetApiKey(provider.ApiKey));
-
-            string baseUrlLabel = provider.ProviderType == LLMProviderType.Gemini
-                ? L10n.BaseUrlGemini : L10n.BaseUrlOpenAI;
-            provider.BaseUrl = EditorGUILayout.TextField(baseUrlLabel, provider.BaseUrl);
-            provider.VLModel = EditorGUILayout.TextField(L10n.VisionModel, provider.VLModel);
-            provider.EmbeddingModel = EditorGUILayout.TextField(L10n.EmbeddingModel, provider.EmbeddingModel);
-
-            if (EditorGUI.EndChangeCheck())
-                _settings.Save();
-
-            EditorGUILayout.Space(4);
-            DrawLlmTestControls(provider);
-        }
-
-        void DrawUserProviderFields()
-        {
-            var provider = _settings.GetRoleProvider();
-
-            EditorGUILayout.LabelField(L10n.ProviderLabel, provider.Name, EditorStyles.boldLabel);
-
-            EditorGUI.BeginChangeCheck();
-
-            provider.ProviderType = (LLMProviderType)EditorGUILayout.EnumPopup(L10n.ProviderType, provider.ProviderType);
-
-            DrawApiKeyFieldWithPersistToggle(
-                provider,
-                () => _settings.SaveApiKeyForProvider(_settings.UserProviderIndex));
 
             string baseUrlLabel = provider.ProviderType == LLMProviderType.Gemini
                 ? L10n.BaseUrlGemini : L10n.BaseUrlOpenAI;

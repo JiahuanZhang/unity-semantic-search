@@ -67,27 +67,6 @@ namespace SemanticSearch.Editor.Core.Localization
         public static string EnhancedQuery(string query) =>
             string.Format(S("Enhanced: {0}", "增强: {0}", "拡張: {0}"), query);
 
-        // ===== Settings — Admin =====
-        public static string AdminMode => S("Admin Mode", "管理员模式", "管理者モード");
-        public static string AdminModeDialogTitle => S("Admin Mode", "管理员模式", "管理者モード");
-        public static string AdminModeWarning => S(
-            "Warning: Admin mode is intended only for developers.\nAre you sure you want to enable it?",
-            "警告：管理员模式仅供开发者使用。\n确定要启用吗？",
-            "警告：管理者モードは開発者専用です。\n有効にしますか？");
-        public static string RoleAdmin => S("Admin", "管理员", "管理者");
-        public static string RoleUser => S("User", "用户", "ユーザー");
-
-        // ===== Settings — Role Provider =====
-        public static string RoleProviderAssignment => S("Role Provider Assignment", "角色供应商分配", "ロールプロバイダー割り当て");
-        public static string AdminProvider => S("Admin Provider", "管理员供应商", "管理者プロバイダー");
-        public static string UserProvider => S("User Provider", "用户供应商", "ユーザープロバイダー");
-
-        public static string CurrentRoleInfo(string role, string provider) =>
-            string.Format(S(
-                "Current role: {0}, using provider: {1}",
-                "当前角色: {0}，使用供应商: {1}",
-                "現在のロール: {0}、プロバイダー: {1}"), role, provider);
-
         // ===== Settings — LLM Configuration =====
         public static string LLMConfiguration => S("LLM Configuration", "LLM 配置", "LLM 設定");
         public static string ActiveProvider => S("Active Provider", "当前供应商", "アクティブプロバイダー");

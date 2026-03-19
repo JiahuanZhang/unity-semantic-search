@@ -23,10 +23,6 @@ namespace SemanticSearch.Editor.UI
         public string VisionPrompt = "";
         public string SearchEnhancerPrompt = "";
 
-        [NonSerialized] public bool IsAdmin;
-        public int AdminProviderIndex;
-        public int UserProviderIndex;
-
         [NonSerialized] private static SemanticSearchSettings _instance;
         public static SemanticSearchSettings Instance => _instance ?? (_instance = Load());
 
@@ -38,14 +34,6 @@ namespace SemanticSearch.Editor.UI
                 int idx = Mathf.Clamp(ActiveProviderIndex, 0, Providers.Count - 1);
                 return Providers[idx];
             }
-        }
-
-        public LLMProviderConfig GetRoleProvider()
-        {
-            EnsureDefaults();
-            int idx = IsAdmin ? AdminProviderIndex : UserProviderIndex;
-            idx = Mathf.Clamp(idx, 0, Providers.Count - 1);
-            return Providers[idx];
         }
 
         static string SettingsPath
@@ -60,7 +48,6 @@ namespace SemanticSearch.Editor.UI
         static string ProjectHash => Application.dataPath.GetHashCode().ToString("X8");
 
         static string ApiKeyPrefsPrefix => $"SemanticSearch_{ProjectHash}_Provider_";
-        static string AdminPrefsKey => $"SemanticSearch_{ProjectHash}_IsAdmin";
 
         public static SemanticSearchSettings Load()
         {
@@ -75,7 +62,6 @@ namespace SemanticSearch.Editor.UI
                     {
                         settings.EnsureDefaults();
                         settings.LoadApiKeys();
-                        settings.IsAdmin = EditorPrefs.GetBool(AdminPrefsKey, false);
                         _instance = settings;
                         return settings;
                     }
@@ -89,7 +75,6 @@ namespace SemanticSearch.Editor.UI
             _instance = new SemanticSearchSettings();
             _instance.EnsureDefaults();
             _instance.MigrateFromLegacy();
-            _instance.IsAdmin = EditorPrefs.GetBool(AdminPrefsKey, false);
             return _instance;
         }
 
@@ -122,8 +107,6 @@ namespace SemanticSearch.Editor.UI
             }
 
             ActiveProviderIndex = Mathf.Clamp(ActiveProviderIndex, 0, Providers.Count - 1);
-            AdminProviderIndex = Mathf.Clamp(AdminProviderIndex, 0, Providers.Count - 1);
-            UserProviderIndex = Mathf.Clamp(UserProviderIndex, 0, Providers.Count - 1);
 
             if (IncludeFilters == null)
                 IncludeFilters = new List<string> { "Assets/**" };
@@ -141,7 +124,6 @@ namespace SemanticSearch.Editor.UI
                     Directory.CreateDirectory(dir);
 
                 SaveApiKeys();
-                EditorPrefs.SetBool(AdminPrefsKey, IsAdmin);
 
                 var clone = JsonUtility.FromJson<SemanticSearchSettings>(JsonUtility.ToJson(this));
                 foreach (var p in clone.Providers)
@@ -198,7 +180,7 @@ namespace SemanticSearch.Editor.UI
 
         public LLMApiConfig ToLLMApiConfig()
         {
-            var p = GetRoleProvider();
+            var p = ActiveProvider;
             return new LLMApiConfig
             {
                 ProviderType = p.ProviderType,
