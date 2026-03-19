@@ -16,6 +16,7 @@
 - **搜索框快速提交**：Search Results 窗口输入后按回车或失去焦点会立即触发搜索
 - **选择性重新索引**：在 Asset View 窗口中勾选资源后点击 Re-index 按钮，仅重新处理选中的资源
 - **配置面板**：通过 `Project Settings > Semantic Search` 或 `Window > Semantic Search > Settings` 管理 Provider、模型选择等
+- **提示词自定义**：管理员模式下可自定义 Vision 描述提示词和搜索增强提示词，留空则自动使用当前语言的默认值
 - **LLM 连通性测试**：在配置面板点击 **Test LLM**，快速验证当前 Provider 配置是否可用
 - **团队共享**：embed 数据库入库，团队成员无需重复处理
 
@@ -87,7 +88,8 @@
 5. 填入 Base URL、API Key、Vision Model、Embedding Model；如需将 API Key 写入 `Settings.json`，勾选 API Key 输入框右侧 **Save**（默认不勾选）
 6. 点击 **Test LLM** 测试当前 Provider 连通性（基于 Embedding 请求）
 7. 在 **Role Provider Assignment** 中为管理员和普通用户分别指定使用的 Provider
-8. 如需自动索引，开启 **Auto-Index On Import**（默认关闭，开启后新导入资产会自动从 Pending 进入 Indexed）
+8. 在 **Prompt Configuration** 中可自定义 Vision 提示词和搜索增强提示词，留空或点击 **Reset** 即恢复为当前系统语言的默认值
+9. 如需自动索引，开启 **Auto-Index On Import**（默认关闭，开启后新导入资产会自动从 Pending 进入 Indexed）
 9. 在 **Asset Filter Rules** 中配置包含/排除规则，控制哪些资产参与 Embedding：
    - **Include Rules**：资产路径须匹配至少一条规则才会被索引，默认 `Assets/**`（全部包含）
    - **Exclude Rules**：匹配的资产将被排除（优先级高于 Include）

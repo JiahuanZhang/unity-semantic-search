@@ -22,6 +22,7 @@ namespace SemanticSearch.Editor.UI
         SemanticSearchSettings _settings;
 
         bool _foldLLM = true;
+        bool _foldPrompt;
         bool _foldWorkflow = true;
         bool _foldFilter = true;
         bool _foldDatabase = true;
@@ -84,6 +85,8 @@ namespace SemanticSearch.Editor.UI
                 {
                     EditorGUILayout.Space(4);
                     DrawRoleProviderSelector();
+                    EditorGUILayout.Space(4);
+                    DrawPromptConfiguration();
                     EditorGUILayout.Space(4);
                     DrawWorkflowControl();
                     EditorGUILayout.Space(4);
@@ -356,6 +359,55 @@ namespace SemanticSearch.Editor.UI
                     provider.VLModel = "qwen-vl-plus";
                     provider.EmbeddingModel = "text-embedding-v3";
                     break;
+            }
+        }
+
+        void DrawPromptConfiguration()
+        {
+            _foldPrompt = EditorGUILayout.Foldout(_foldPrompt, L10n.PromptConfiguration, true, EditorStyles.foldoutHeader);
+            if (!_foldPrompt) return;
+
+            using (new EditorGUI.IndentLevelScope())
+            {
+                EditorGUI.BeginChangeCheck();
+
+                DrawPromptField(
+                    L10n.VisionPromptLabel,
+                    ref _settings.VisionPrompt,
+                    L10n.DefaultVisionPrompt);
+
+                EditorGUILayout.Space(4);
+
+                DrawPromptField(
+                    L10n.SearchEnhancerPromptLabel,
+                    ref _settings.SearchEnhancerPrompt,
+                    L10n.DefaultSearchEnhancerPrompt);
+
+                if (EditorGUI.EndChangeCheck())
+                    _settings.Save();
+            }
+        }
+
+        void DrawPromptField(string label, ref string value, string defaultValue)
+        {
+            EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
+
+            var displayText = string.IsNullOrWhiteSpace(value) ? defaultValue : value;
+            var newText = EditorGUILayout.TextArea(displayText, GUILayout.MinHeight(60));
+
+            if (newText != displayText)
+                value = newText;
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Space(EditorGUI.indentLevel * 15);
+                if (GUILayout.Button(
+                        new GUIContent(L10n.ResetToDefault, L10n.ResetToDefaultTooltip),
+                        GUILayout.Width(60), GUILayout.Height(18)))
+                {
+                    value = "";
+                    GUI.FocusControl(null);
+                }
             }
         }
 

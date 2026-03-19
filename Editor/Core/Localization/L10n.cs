@@ -336,8 +336,18 @@ namespace SemanticSearch.Editor.Core.Localization
             "扫描所选资产...",
             "選択したアセットをスキャン中...");
 
+        // ===== Settings — Prompt Configuration =====
+        public static string PromptConfiguration => S("Prompt Configuration", "提示词配置", "プロンプト設定");
+        public static string VisionPromptLabel => S("Vision Prompt", "视觉描述提示词", "ビジョンプロンプト");
+        public static string SearchEnhancerPromptLabel => S("Search Enhancer Prompt", "搜索增强提示词", "検索拡張プロンプト");
+        public static string ResetToDefault => S("Reset", "重置", "リセット");
+        public static string ResetToDefaultTooltip => S(
+            "Reset to default prompt for current language",
+            "重置为当前语言的默认提示词",
+            "現在の言語のデフォルトプロンプトにリセット");
+
         // ===== LLM Prompts — Vision =====
-        public static string VisionDefaultPrompt => S(
+        public static string DefaultVisionPrompt => S(
             "Provide a concise, natural language description for this image in English. "
             + "Describe the main subject, art style, key colors, and notable features. "
             + "Output should be one natural sentence. "
@@ -367,7 +377,7 @@ namespace SemanticSearch.Editor.Core.Localization
         }
 
         // ===== LLM Prompts — Search Query Enhancer =====
-        public static string SearchEnhancerSystemPrompt => S(
+        public static string DefaultSearchEnhancerPrompt => S(
             "You are a semantic search query optimizer. Assets in the resource library are indexed in this format:\n"
             + "\"Asset type: {type}, File name: {filename}. Description: {English description}\"\n\n"
             + "Optimize the user's search keywords into a natural search sentence for vector similarity matching.\n\n"

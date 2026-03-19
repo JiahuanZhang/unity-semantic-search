@@ -1,11 +1,11 @@
 using System.Threading.Tasks;
-using SemanticSearch.Editor.Core.Localization;
+using SemanticSearch.Editor.UI;
 
 namespace SemanticSearch.Editor.Core.LLM
 {
     public static class VisionConstants
     {
-        public static string DefaultPrompt => L10n.VisionDefaultPrompt;
+        public static string DefaultPrompt => SemanticSearchSettings.Instance.GetEffectiveVisionPrompt();
     }
 
     public interface IVisionClient

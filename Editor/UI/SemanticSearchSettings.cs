@@ -4,6 +4,8 @@ using System.IO;
 using UnityEngine;
 using UnityEditor;
 using SemanticSearch.Editor.Core.LLM;
+using SemanticSearch.Editor.Core.Localization;
+using L10n = SemanticSearch.Editor.Core.Localization.L10n;
 
 namespace SemanticSearch.Editor.UI
 {
@@ -17,6 +19,9 @@ namespace SemanticSearch.Editor.UI
 
         public List<string> IncludeFilters = new List<string> { "Assets/**" };
         public List<string> ExcludeFilters = new List<string>();
+
+        public string VisionPrompt = "";
+        public string SearchEnhancerPrompt = "";
 
         [NonSerialized] public bool IsAdmin;
         public int AdminProviderIndex;
@@ -176,6 +181,12 @@ namespace SemanticSearch.Editor.UI
             if (index >= 0 && index < Providers.Count)
                 EditorPrefs.SetString(ApiKeyPrefsPrefix + index, Providers[index].ApiKey ?? "");
         }
+
+        public string GetEffectiveVisionPrompt() =>
+            string.IsNullOrWhiteSpace(VisionPrompt) ? L10n.DefaultVisionPrompt : VisionPrompt;
+
+        public string GetEffectiveSearchEnhancerPrompt() =>
+            string.IsNullOrWhiteSpace(SearchEnhancerPrompt) ? L10n.DefaultSearchEnhancerPrompt : SearchEnhancerPrompt;
 
         public string GetApiKey() => ActiveProvider.ApiKey;
 

@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 using SemanticSearch.Editor.Core.LLM;
-using SemanticSearch.Editor.Core.Localization;
+using SemanticSearch.Editor.UI;
 
 namespace SemanticSearch.Editor.Core.Search
 {
@@ -18,7 +18,8 @@ namespace SemanticSearch.Editor.Core.Search
             if (string.IsNullOrWhiteSpace(queryText))
                 return queryText;
 
-            var enhanced = await _chatClient.ChatAsync(L10n.SearchEnhancerSystemPrompt, queryText);
+            var prompt = SemanticSearchSettings.Instance.GetEffectiveSearchEnhancerPrompt();
+            var enhanced = await _chatClient.ChatAsync(prompt, queryText);
             return string.IsNullOrWhiteSpace(enhanced) ? queryText : enhanced;
         }
     }
