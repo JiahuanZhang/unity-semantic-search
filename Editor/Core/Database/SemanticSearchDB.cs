@@ -9,6 +9,7 @@ namespace SemanticSearch.Editor.Core.Database
     {
         private SqliteConnection _conn;
         private readonly object _lock = new object();
+        private static volatile bool s_schemaEnsured;
 
         private const string CreateTableSql = @"
             CREATE TABLE IF NOT EXISTS assets (
@@ -65,7 +66,17 @@ namespace SemanticSearch.Editor.Core.Database
                     cmd.ExecuteNonQuery();
                 }
 
-                EnsureSchema();
+                using (var cmd = _conn.CreateCommand())
+                {
+                    cmd.CommandText = "PRAGMA busy_timeout=5000;";
+                    cmd.ExecuteNonQuery();
+                }
+
+                if (!s_schemaEnsured)
+                {
+                    EnsureSchema();
+                    s_schemaEnsured = true;
+                }
             }
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using SemanticSearch.Editor.Core.Database;
 using SemanticSearch.Editor.Core.LLM;
@@ -48,7 +49,7 @@ namespace SemanticSearch.Editor.Core.Search
             if (queryVector == null || queryVector.Length == 0 || queryNorm <= 0f)
                 return new List<SearchResult>();
 
-            var vectors = GetCachedVectors();
+            var vectors = await Task.Run(() => GetCachedVectors());
             if (vectors.Count == 0)
                 return new List<SearchResult>();
 
@@ -74,7 +75,7 @@ namespace SemanticSearch.Editor.Core.Search
             var guids = new List<string>(results.Count);
             foreach (var r in results)
                 guids.Add(r.Guid);
-            var records = _db.GetAssetSummariesByGuids(guids);
+            var records = await Task.Run(() => _db.GetAssetSummariesByGuids(guids));
 
             foreach (var result in results)
             {

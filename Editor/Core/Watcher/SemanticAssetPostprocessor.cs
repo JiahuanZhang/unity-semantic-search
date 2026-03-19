@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using SemanticSearch.Editor.Core.Database;
@@ -49,96 +51,111 @@ namespace SemanticSearch.Editor.Core.Watcher
             if (!hasWork)
                 return;
 
-            bool hasDbChanges = false;
-            bool hasPendingUpdates = false;
+            var upsertItems = new List<(string guid, string path, string md5)>();
+            var deletePaths = new List<(string guid, string path)>();
 
-            using (var db = OpenDB())
+            foreach (var path in importedAssets)
             {
-                foreach (var path in importedAssets)
+                if (!ShouldProcess(path)) continue;
+                var item = CollectImportItem(path);
+                if (item.HasValue)
+                    upsertItems.Add(item.Value);
+            }
+
+            foreach (var path in deletedAssets)
+            {
+                if (!ShouldProcess(path)) continue;
+                var guid = AssetDatabase.AssetPathToGUID(path);
+                deletePaths.Add((guid, path));
+            }
+
+            for (int i = 0; i < movedAssets.Length; i++)
+            {
+                var newPath = movedAssets[i];
+                var oldPath = movedFromAssetPaths[i];
+
+                if (ShouldProcess(oldPath) && !ShouldProcess(newPath))
                 {
-                    if (!ShouldProcess(path)) continue;
-                    if (ProcessImportedAsset(db, path))
-                    {
-                        hasDbChanges = true;
-                        hasPendingUpdates = true;
-                    }
+                    var guid = AssetDatabase.AssetPathToGUID(oldPath);
+                    deletePaths.Add((guid, oldPath));
                 }
-
-                foreach (var path in deletedAssets)
+                else if (ShouldProcess(newPath))
                 {
-                    if (!ShouldProcess(path)) continue;
-                    if (ProcessDeletedAsset(db, path))
-                        hasDbChanges = true;
-                }
-
-                for (int i = 0; i < movedAssets.Length; i++)
-                {
-                    var newPath = movedAssets[i];
-                    var oldPath = movedFromAssetPaths[i];
-
-                    if (ShouldProcess(oldPath) && !ShouldProcess(newPath))
-                    {
-                        if (ProcessDeletedAsset(db, oldPath))
-                            hasDbChanges = true;
-                    }
-                    else if (ShouldProcess(newPath))
-                    {
-                        if (ProcessImportedAsset(db, newPath))
-                        {
-                            hasDbChanges = true;
-                            hasPendingUpdates = true;
-                        }
-                    }
+                    var item = CollectImportItem(newPath);
+                    if (item.HasValue)
+                        upsertItems.Add(item.Value);
                 }
             }
 
-            if (hasDbChanges)
-                SemanticSearchSettingsProvider.RequestCountsRefresh();
+            if (upsertItems.Count == 0 && deletePaths.Count == 0)
+                return;
 
-            if (hasPendingUpdates)
-                ScheduleAutoIndex();
+            EditorApplication.delayCall += () =>
+                FlushPostprocessChangesAsync(upsertItems, deletePaths);
         }
 
-        private static bool ProcessImportedAsset(SemanticSearchDB db, string assetPath)
+        private static (string guid, string path, string md5)? CollectImportItem(string assetPath)
         {
             var guid = AssetDatabase.AssetPathToGUID(assetPath);
-            if (string.IsNullOrEmpty(guid)) return false;
+            if (string.IsNullOrEmpty(guid)) return null;
 
             var fullPath = Path.GetFullPath(assetPath);
-            if (!File.Exists(fullPath)) return false;
+            if (!File.Exists(fullPath)) return null;
 
             var md5 = MD5Helper.ComputeFileMD5(fullPath);
-            var existing = db.GetByGuid(guid);
-
-            if (existing != null && existing.Md5 == md5)
-                return false;
-
-            db.Upsert(new AssetRecord
-            {
-                Guid = guid,
-                AssetPath = assetPath,
-                Md5 = md5,
-                Status = Database.AssetStatus.Pending,
-                UpdatedAt = DateTime.UtcNow.ToString("o")
-            });
-
-            return true;
+            return (guid, assetPath, md5);
         }
 
-        private static bool ProcessDeletedAsset(SemanticSearchDB db, string assetPath)
+        private static async void FlushPostprocessChangesAsync(
+            List<(string guid, string path, string md5)> upsertItems,
+            List<(string guid, string path)> deletePaths)
         {
-            var guid = AssetDatabase.AssetPathToGUID(assetPath);
-            if (string.IsNullOrEmpty(guid))
+            try
             {
-                var record = db.GetByPath(assetPath);
-                guid = record?.Guid;
+                bool hasPending = false;
+                await Task.Run(() =>
+                {
+                    using (var db = OpenDB())
+                    {
+                        foreach (var (guid, path, md5) in upsertItems)
+                        {
+                            var existing = db.GetByGuid(guid);
+                            if (existing != null && existing.Md5 == md5)
+                                continue;
+
+                            db.Upsert(new AssetRecord
+                            {
+                                Guid = guid,
+                                AssetPath = path,
+                                Md5 = md5,
+                                Status = Database.AssetStatus.Pending,
+                                UpdatedAt = DateTime.UtcNow.ToString("o")
+                            });
+                            hasPending = true;
+                        }
+
+                        foreach (var (deleteGuid, deletePath) in deletePaths)
+                        {
+                            var resolvedGuid = deleteGuid;
+                            if (string.IsNullOrEmpty(resolvedGuid))
+                            {
+                                var record = db.GetByPath(deletePath);
+                                resolvedGuid = record?.Guid;
+                            }
+                            if (!string.IsNullOrEmpty(resolvedGuid))
+                                db.Delete(resolvedGuid);
+                        }
+                    }
+                });
+
+                SemanticSearchSettingsProvider.RequestCountsRefresh();
+                if (hasPending)
+                    ScheduleAutoIndex();
             }
-
-            if (string.IsNullOrEmpty(guid))
-                return false;
-
-            db.Delete(guid);
-            return true;
+            catch (Exception e)
+            {
+                Debug.LogError($"[SemanticSearch] Post-process DB flush failed: {e}");
+            }
         }
 
         private static void ScheduleAutoIndex()

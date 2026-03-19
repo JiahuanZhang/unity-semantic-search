@@ -210,19 +210,21 @@ namespace SemanticSearch.Editor.UI
             ClearThumbnailCache();
             Repaint();
 
-            SemanticSearchDB db = null;
             try
             {
                 var sw = Stopwatch.StartNew();
                 long managedBefore = GC.GetTotalMemory(false);
                 var config = LLMApiConfig.Load();
-                db = new SemanticSearchDB();
-                db.Open();
 
-                var http = new LLMHttpClient(config);
-                var embedding = LLMClientFactory.CreateEmbeddingClient(config, http);
-                var engine = new VectorSearchEngine(db, embedding);
-                _results = await engine.SearchAsync(queryText);
+                using (var db = new SemanticSearchDB())
+                {
+                    db.Open();
+                    var http = new LLMHttpClient(config);
+                    var embedding = LLMClientFactory.CreateEmbeddingClient(config, http);
+                    var engine = new VectorSearchEngine(db, embedding);
+                    _results = await engine.SearchAsync(queryText);
+                }
+
                 sw.Stop();
                 _searchTime = (float)sw.Elapsed.TotalSeconds;
 
@@ -241,13 +243,8 @@ namespace SemanticSearch.Editor.UI
             }
             finally
             {
-                try
-                {
-                    db?.Close();
-                    _isSearching = false;
-                    Repaint();
-                }
-                catch (Exception ex2) { UnityEngine.Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
+                _isSearching = false;
+                Repaint();
             }
         }
 

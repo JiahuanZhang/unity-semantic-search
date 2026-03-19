@@ -54,7 +54,7 @@ namespace SemanticSearch.Editor.UI
         public override void OnActivate(string searchContext, UnityEngine.UIElements.VisualElement rootElement)
         {
             _settings = SemanticSearchSettings.Load();
-            RefreshCounts();
+            RefreshCountsAsync();
         }
 
         public override void OnDeactivate()
@@ -67,8 +67,8 @@ namespace SemanticSearch.Editor.UI
         {
             if (s_needsCountRefresh && !_isRunning)
             {
-                RefreshCounts();
                 s_needsCountRefresh = false;
+                RefreshCountsAsync();
             }
 
             EditorGUILayout.Space(6);
@@ -563,7 +563,7 @@ namespace SemanticSearch.Editor.UI
             }
         }
 
-        void ClearDatabase()
+        async void ClearDatabase()
         {
             if (!EditorUtility.DisplayDialog(
                     "Clear Database",
@@ -571,36 +571,34 @@ namespace SemanticSearch.Editor.UI
                     "Delete All", "Cancel"))
                 return;
 
-            SemanticSearchDB db = null;
+            _statusText = "Clearing...";
+            RefreshSettingsWindow();
+
             try
             {
-                db = new SemanticSearchDB();
-                db.Open();
-                db.DeleteAll();
-                RefreshCounts(db);
+                await Task.Run(() =>
+                {
+                    using (var db = new SemanticSearchDB())
+                    {
+                        db.Open();
+                        db.DeleteAll();
+                    }
+                });
                 _statusText = "Database cleared.";
+                RefreshCountsAsync();
             }
             catch (Exception e)
             {
+                _statusText = $"Clear failed: {e.Message}";
                 Debug.LogError($"[SemanticSearch] Clear failed: {e}");
             }
-            finally
-            {
-                db?.Close();
-            }
+            RefreshSettingsWindow();
         }
 
-        void RefreshCounts(SemanticSearchDB db = null)
+        void RefreshCounts(SemanticSearchDB db)
         {
-            bool ownDb = db == null;
             try
             {
-                if (ownDb)
-                {
-                    db = new SemanticSearchDB();
-                    db.Open();
-                }
-
                 _indexedCount = db.GetIndexedCount();
                 _pendingCount = db.GetPendingCount();
             }
@@ -609,10 +607,29 @@ namespace SemanticSearch.Editor.UI
                 _indexedCount = 0;
                 _pendingCount = 0;
             }
-            finally
+        }
+
+        async void RefreshCountsAsync()
+        {
+            try
             {
-                if (ownDb) db?.Close();
+                var (indexed, pending) = await Task.Run(() =>
+                {
+                    using (var db = new SemanticSearchDB())
+                    {
+                        db.Open();
+                        return (db.GetIndexedCount(), db.GetPendingCount());
+                    }
+                });
+                _indexedCount = indexed;
+                _pendingCount = pending;
             }
+            catch
+            {
+                _indexedCount = 0;
+                _pendingCount = 0;
+            }
+            RefreshSettingsWindow();
         }
 
         void DrawAssetViewShortcut()

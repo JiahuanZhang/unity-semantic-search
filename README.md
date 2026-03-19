@@ -153,6 +153,7 @@
 
 ## 最近修复
 
+- 修复索引进行中操作 UI 导致编辑器卡住的问题：添加 `PRAGMA busy_timeout` 避免 SQLite 锁冲突立即阻塞；`EnsureSchema` 改为仅首次执行以消除不必要的 DDL 写争用；全面排查所有 DB 调用点，将 `RefreshAssetList`、`RefreshCounts`、`ClearDatabase`、`DeleteSelected` 改为异步，搜索引擎的 `GetCachedVectors`/`GetAssetSummariesByGuids` 移至后台线程，`OnPostprocessAllAssets` 的 DB 写操作通过 `delayCall` + `Task.Run` 延迟到后台执行，确保主线程不被 DB 操作阻塞。
 - 预制体条目在 Asset View 和 Search Results 中默认显示 3D 缩略图（`AssetPreview.GetAssetPreview`），异步加载期间先显示类型图标再自动刷新，性能无阻塞。
 - `Semantic Search Results` 窗口中，匹配度百分比调整为显示在文件名同一行右侧，结果信息更易扫读。
 - 修复 `Semantic Search Results` 窗口保持打开时，`Open Asset View` 偶发打开慢且列表为空的问题。

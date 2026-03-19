@@ -30,6 +30,7 @@ namespace SemanticSearch.Editor.UI
         const int ThumbnailCacheLimit = 400;
 
         bool _isRunning;
+        bool _isLoading;
         string _statusText;
         CancellationTokenSource _cts;
 
@@ -287,26 +288,37 @@ namespace SemanticSearch.Editor.UI
             return _filteredRecords;
         }
 
-        void RefreshAssetList()
+        async void RefreshAssetList()
         {
-            SemanticSearchDB db = null;
+            if (_isLoading) return;
+            _isLoading = true;
+            _statusText = "Loading...";
+            Repaint();
+
             try
             {
-                db = new SemanticSearchDB();
-                db.Open();
-                _allRecords = new List<AssetRecord>();
-                int offset = 0;
-                while (true)
+                var records = await Task.Run(() =>
                 {
-                    var page = db.QueryAssetSummaries(filter: null, status: null, limit: DbLoadPageSize, offset: offset);
-                    if (page.Count == 0)
-                        break;
+                    using (var db = new SemanticSearchDB())
+                    {
+                        db.Open();
+                        var list = new List<AssetRecord>();
+                        int offset = 0;
+                        while (true)
+                        {
+                            var page = db.QueryAssetSummaries(filter: null, status: null, limit: DbLoadPageSize, offset: offset);
+                            if (page.Count == 0)
+                                break;
+                            list.AddRange(page);
+                            offset += page.Count;
+                            if (page.Count < DbLoadPageSize)
+                                break;
+                        }
+                        return list;
+                    }
+                });
 
-                    _allRecords.AddRange(page);
-                    offset += page.Count;
-                    if (page.Count < DbLoadPageSize)
-                        break;
-                }
+                _allRecords = records;
                 _filterDirty = true;
                 _statusText = null;
             }
@@ -320,12 +332,11 @@ namespace SemanticSearch.Editor.UI
             }
             finally
             {
-                db?.Close();
+                _isLoading = false;
+                ClearThumbnailCache();
+                _displayCount = PageSize;
+                Repaint();
             }
-
-            ClearThumbnailCache();
-            _displayCount = PageSize;
-            Repaint();
         }
 
         async void ReindexSelected()
@@ -385,7 +396,7 @@ namespace SemanticSearch.Editor.UI
             }
         }
 
-        void DeleteSelected()
+        async void DeleteSelected()
         {
             var guidsToDelete = _selectedGuids.ToList();
             if (guidsToDelete.Count == 0) return;
@@ -395,25 +406,28 @@ namespace SemanticSearch.Editor.UI
                     "Delete", "Cancel"))
                 return;
 
-            SemanticSearchDB db = null;
+            _statusText = $"Deleting {guidsToDelete.Count} records...";
+            Repaint();
+
             try
             {
-                db = new SemanticSearchDB();
-                db.Open();
-                db.DeleteBatch(guidsToDelete);
+                await Task.Run(() =>
+                {
+                    using (var db = new SemanticSearchDB())
+                    {
+                        db.Open();
+                        db.DeleteBatch(guidsToDelete);
+                    }
+                });
                 _selectedGuids.Clear();
-                RefreshAssetList();
                 _statusText = $"Deleted {guidsToDelete.Count} records.";
+                RefreshAssetList();
             }
             catch (Exception e)
             {
+                _statusText = $"Delete failed: {e.Message}";
                 Debug.LogError($"[SemanticSearch] Delete failed: {e}");
             }
-            finally
-            {
-                db?.Close();
-            }
-
             Repaint();
         }
 
