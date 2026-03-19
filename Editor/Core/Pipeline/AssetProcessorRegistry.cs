@@ -10,17 +10,24 @@ namespace SemanticSearch.Editor.Core.Pipeline
     {
         readonly List<IAssetProcessor> _processors = new List<IAssetProcessor>();
         string[] _allExtensionsCache;
+        bool _hasFallback;
 
         public AssetProcessorRegistry(IVisionClient vlClient, IEmbeddingClient embeddingClient)
         {
             Register(new ImageAssetProcessor(vlClient, embeddingClient));
             Register(new PrefabAssetProcessor(vlClient, embeddingClient));
+            Register(new ModelAssetProcessor(vlClient, embeddingClient));
+            Register(new MaterialAssetProcessor(vlClient, embeddingClient));
+            Register(new ScriptAssetProcessor(embeddingClient));
+            Register(new DefaultAssetProcessor(embeddingClient));
         }
 
         public void Register(IAssetProcessor processor)
         {
             _processors.Add(processor);
             _allExtensionsCache = null;
+            if (processor is DefaultAssetProcessor)
+                _hasFallback = true;
         }
 
         public IAssetProcessor GetProcessor(string assetPath)
@@ -32,6 +39,8 @@ namespace SemanticSearch.Editor.Core.Pipeline
             }
             return null;
         }
+
+        public bool HasFallback => _hasFallback;
 
         public string[] GetAllSupportedExtensions()
         {
@@ -50,6 +59,7 @@ namespace SemanticSearch.Editor.Core.Pipeline
 
         public bool IsSupported(string assetPath)
         {
+            if (_hasFallback) return true;
             var ext = Path.GetExtension(assetPath).ToLowerInvariant();
             var all = GetAllSupportedExtensions();
             return Array.IndexOf(all, ext) >= 0;

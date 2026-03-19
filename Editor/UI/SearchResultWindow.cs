@@ -307,7 +307,7 @@ namespace SemanticSearch.Editor.UI
             {
                 tex = t;
             }
-            else if (IsPrefab(assetPath))
+            else if (NeedsAssetPreview(assetPath))
             {
                 tex = AssetPreview.GetAssetPreview(asset);
                 if (tex == null && AssetPreview.IsLoadingAssetPreview(asset.GetInstanceID()))
@@ -328,9 +328,14 @@ namespace SemanticSearch.Editor.UI
             return tex;
         }
 
-        static bool IsPrefab(string assetPath)
+        static readonly HashSet<string> PreviewExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            return Path.GetExtension(assetPath).Equals(".prefab", StringComparison.OrdinalIgnoreCase);
+            ".prefab", ".fbx", ".obj", ".blend", ".dae", ".3ds", ".gltf", ".glb", ".mat"
+        };
+
+        static bool NeedsAssetPreview(string assetPath)
+        {
+            return PreviewExtensions.Contains(Path.GetExtension(assetPath));
         }
 
         void TrimThumbnailCache()

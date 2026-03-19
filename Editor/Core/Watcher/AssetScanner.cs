@@ -12,7 +12,13 @@ namespace SemanticSearch.Editor.Core.Watcher
 {
     public static class AssetScanner
     {
-        static readonly string[] DefaultExtensions = { ".png", ".jpg", ".jpeg", ".tga", ".prefab" };
+        static readonly string[] DefaultExtensions = {
+            ".png", ".jpg", ".jpeg", ".tga",
+            ".prefab",
+            ".fbx", ".obj", ".blend", ".dae", ".3ds", ".gltf", ".glb",
+            ".mat",
+            ".cs"
+        };
         static readonly string[] BlacklistPrefixes = { "Packages/", "Library/" };
         const int UpsertBatchSize = 128;
 
@@ -23,6 +29,15 @@ namespace SemanticSearch.Editor.Core.Watcher
             { ".jpeg", "t:Texture2D" },
             { ".tga",  "t:Texture2D" },
             { ".prefab", "t:Prefab" },
+            { ".fbx",  "t:Model" },
+            { ".obj",  "t:Model" },
+            { ".blend", "t:Model" },
+            { ".dae",  "t:Model" },
+            { ".3ds",  "t:Model" },
+            { ".gltf", "t:Model" },
+            { ".glb",  "t:Model" },
+            { ".mat",  "t:Material" },
+            { ".cs",   "t:MonoScript" },
         };
 
         public static string[] GetSupportedExtensions() => DefaultExtensions;

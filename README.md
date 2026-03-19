@@ -132,10 +132,16 @@
 
 | 组件 | 职责 |
 |---|---|
-| `IAssetProcessor` | 处理器接口，定义 `CanProcess` / `GetAssetData` / `ProcessAsync` |
-| `ImageAssetProcessor` | 处理图片资源（.png/.jpg/.jpeg/.tga），直接读取文件字节 |
-| `PrefabAssetProcessor` | 处理预制体资源（.prefab），通过 AssetPreview 生成预览图 |
-| `AssetProcessorRegistry` | 注册并管理所有处理器，根据文件扩展名自动路由 |
+| `IAssetProcessor` | 处理器接口，定义 `Kind` / `CanProcess` / `GetAssetData` / `ProcessAsync` |
+| `AssetKind` | 枚举：`Visual`（需 Vision 描述）/ `Text`（纯文本直接 Embedding） |
+| `ImageAssetProcessor` | 处理图片资源（.png/.jpg/.jpeg/.tga），直接读取文件字节 → Vision + Embedding |
+| `PrefabAssetProcessor` | 处理预制体资源（.prefab），通过 AssetPreview 生成预览图 → Vision + Embedding |
+| `ModelAssetProcessor` | 处理 3D 模型（.fbx/.obj/.blend/.dae/.3ds/.gltf/.glb），缩略图 → Vision + Embedding |
+| `MaterialAssetProcessor` | 处理材质（.mat），材质球预览图 → Vision + Embedding |
+| `ScriptAssetProcessor` | 处理 C# 脚本（.cs），正则提取类名/方法/注释摘要 → 纯文本 Embedding |
+| `DefaultAssetProcessor` | 兜底处理器，基于文件名、路径和扩展名类型 → 纯文本 Embedding |
+| `PreviewBasedAssetProcessor` | 基于 AssetPreview 缩略图的处理器基类，供 Prefab/Model/Material 复用 |
+| `AssetProcessorRegistry` | 注册并管理所有处理器，根据文件扩展名自动路由，Default 兜底 |
 | `IndexPipeline` | 索引流水线，通过 Registry 获取对应处理器执行索引 |
 
 ### 增强搜索（Query Enhancement）
@@ -166,9 +172,20 @@
 
 这样可提升命名语义较强资源（如角色、道具、UI 组件）在检索中的稳定性与召回率。
 
+### 已支持的资源类型
+
+| 类型 | 扩展名 | 索引策略 |
+|---|---|---|
+| 图片 | .png, .jpg, .jpeg, .tga | Vision 描述 + Embedding |
+| 预制体 | .prefab | AssetPreview 缩略图 → Vision + Embedding |
+| 3D 模型 | .fbx, .obj, .blend, .dae, .3ds, .gltf, .glb | AssetPreview 缩略图 → Vision + Embedding |
+| 材质 | .mat | AssetPreview 材质球预览 → Vision + Embedding |
+| C# 脚本 | .cs | 正则提取类名/方法签名/注释 → 纯文本 Embedding |
+| 其他资源 | 任意 | DefaultAssetProcessor 兜底：文件名 + 路径 + 类型 → 纯文本 Embedding |
+
 扩展新资源类型只需：
-1. 实现 `IAssetProcessor` 接口
-2. 在 `AssetProcessorRegistry` 构造函数中注册
+1. 实现 `IAssetProcessor` 接口（或继承 `PreviewBasedAssetProcessor`）
+2. 在 `AssetProcessorRegistry` 构造函数中注册（DefaultAssetProcessor 之前）
 3. 在 `AssetScanner.ExtensionToAssetType` 中添加扩展名映射
 
 ## 多语言支持

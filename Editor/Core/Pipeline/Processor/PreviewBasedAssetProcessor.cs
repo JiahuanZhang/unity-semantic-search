@@ -8,27 +8,31 @@ using UnityEngine;
 
 namespace SemanticSearch.Editor.Core.Pipeline
 {
-    public class PrefabAssetProcessor : IAssetProcessor
+    /// <summary>
+    /// Base processor for assets that use AssetPreview thumbnails + Vision description.
+    /// </summary>
+    public abstract class PreviewBasedAssetProcessor : IAssetProcessor
     {
-        static readonly string[] Extensions = { ".prefab" };
         const int PreviewMaxRetries = 30;
         const int PreviewRetryIntervalMs = 100;
 
-        readonly IVisionClient _vlClient;
-        readonly IEmbeddingClient _embeddingClient;
+        protected readonly IVisionClient VlClient;
+        protected readonly IEmbeddingClient EmbeddingClient;
 
-        public string[] SupportedExtensions => Extensions;
+        public AssetKind Kind => AssetKind.Visual;
+        public abstract string[] SupportedExtensions { get; }
+        protected abstract string AssetType { get; }
 
-        public PrefabAssetProcessor(IVisionClient vlClient, IEmbeddingClient embeddingClient)
+        protected PreviewBasedAssetProcessor(IVisionClient vlClient, IEmbeddingClient embeddingClient)
         {
-            _vlClient = vlClient;
-            _embeddingClient = embeddingClient;
+            VlClient = vlClient;
+            EmbeddingClient = embeddingClient;
         }
 
         public bool CanProcess(string assetPath)
         {
             var ext = Path.GetExtension(assetPath).ToLowerInvariant();
-            return ext == ".prefab";
+            return Array.IndexOf(SupportedExtensions, ext) >= 0;
         }
 
         public byte[] GetAssetData(string assetPath)
@@ -59,16 +63,16 @@ namespace SemanticSearch.Editor.Core.Pipeline
         {
             var imageBytes = GetAssetData(assetPath);
             if (imageBytes == null || imageBytes.Length == 0)
-                return AssetProcessResult.Fail($"Failed to get prefab preview: {assetPath}");
+                return AssetProcessResult.Fail($"Failed to get {AssetType} preview: {assetPath}");
 
             ct.ThrowIfCancellationRequested();
 
-            var prompt = AssetTextBuilder.BuildVisionPrompt(assetPath, "prefab");
-            var caption = await _vlClient.RequestCaptionAsync(imageBytes, prompt);
+            var prompt = AssetTextBuilder.BuildVisionPrompt(assetPath, AssetType);
+            var caption = await VlClient.RequestCaptionAsync(imageBytes, prompt);
             ct.ThrowIfCancellationRequested();
 
-            var embeddingText = AssetTextBuilder.BuildEmbeddingText(assetPath, caption, "prefab");
-            var vector = await _embeddingClient.RequestEmbeddingAsync(embeddingText);
+            var embeddingText = AssetTextBuilder.BuildEmbeddingText(assetPath, caption, AssetType);
+            var vector = await EmbeddingClient.RequestEmbeddingAsync(embeddingText);
             ct.ThrowIfCancellationRequested();
 
             if (vector == null || vector.Length == 0)

@@ -255,22 +255,6 @@ namespace SemanticSearch.Editor.Core.Pipeline
             State = PipelineState.Cancelled;
         }
 
-        /// <summary>
-        /// 通过 Registry 获取资源的图片数据（兼容旧调用点）。
-        /// </summary>
-        public static byte[] GetAssetImageBytes(string assetPath)
-        {
-            var ext = System.IO.Path.GetExtension(assetPath).ToLowerInvariant();
-
-            if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga")
-                return new ImageAssetProcessor(null, null).GetAssetData(assetPath);
-
-            if (ext == ".prefab")
-                return new PrefabAssetProcessor(null, null).GetAssetData(assetPath);
-
-            return null;
-        }
-
         async Task<IndexSingleResult> BuildRecordAsync(AssetRecord pendingRecord, CancellationToken ct)
         {
             var guid = pendingRecord?.Guid;

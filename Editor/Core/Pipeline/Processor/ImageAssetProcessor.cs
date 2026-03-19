@@ -14,6 +14,7 @@ namespace SemanticSearch.Editor.Core.Pipeline
         readonly IVisionClient _vlClient;
         readonly IEmbeddingClient _embeddingClient;
 
+        public AssetKind Kind => AssetKind.Visual;
         public string[] SupportedExtensions => Extensions;
 
         public ImageAssetProcessor(IVisionClient vlClient, IEmbeddingClient embeddingClient)

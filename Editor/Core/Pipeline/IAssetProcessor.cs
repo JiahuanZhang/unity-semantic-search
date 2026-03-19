@@ -3,6 +3,12 @@ using System.Threading.Tasks;
 
 namespace SemanticSearch.Editor.Core.Pipeline
 {
+    public enum AssetKind
+    {
+        Visual,
+        Text
+    }
+
     public class AssetProcessResult
     {
         public string Caption { get; set; }
@@ -16,6 +22,8 @@ namespace SemanticSearch.Editor.Core.Pipeline
 
     public interface IAssetProcessor
     {
+        AssetKind Kind { get; }
+
         string[] SupportedExtensions { get; }
 
         bool CanProcess(string assetPath);
