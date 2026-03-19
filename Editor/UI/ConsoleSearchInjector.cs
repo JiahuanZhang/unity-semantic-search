@@ -5,6 +5,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using L10n = SemanticSearch.Editor.Core.Localization.L10n;
 
 namespace SemanticSearch.Editor.UI
 {
@@ -68,7 +69,7 @@ namespace SemanticSearch.Editor.UI
             {
                 name = SearchBtnName,
                 text = "🔍",
-                tooltip = "Semantic Search (Shift+Alt+F)",
+                tooltip = L10n.SemanticSearchShortcut,
                 focusable = false,
                 style =
                 {

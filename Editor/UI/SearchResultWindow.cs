@@ -6,8 +6,10 @@ using UnityEditor;
 using UnityEngine;
 using SemanticSearch.Editor.Core.Database;
 using SemanticSearch.Editor.Core.LLM;
+using SemanticSearch.Editor.Core.Localization;
 using SemanticSearch.Editor.Core.Search;
 using SemanticSearch.Editor.Core.Utils;
+using L10n = SemanticSearch.Editor.Core.Localization.L10n;
 using Object = UnityEngine.Object;
 
 namespace SemanticSearch.Editor.UI
@@ -37,7 +39,7 @@ namespace SemanticSearch.Editor.UI
 
         public static void Show(string queryText)
         {
-            var window = GetWindow<SearchResultWindow>("Semantic Search Results");
+            var window = GetWindow<SearchResultWindow>(L10n.SearchWindowTitle);
             window.minSize = new Vector2(400, 300);
             window._queryText = queryText ?? "";
             window._lastSearchedText = "";
@@ -102,10 +104,10 @@ namespace SemanticSearch.Editor.UI
                     ExecuteSearch(_queryText.Trim());
             }
 
-            var enhancedContent = new GUIContent("Enhanced", "使用大模型优化搜索关键词，提高语义匹配准确度");
+            var enhancedContent = new GUIContent(L10n.Enhanced, L10n.EnhancedTooltip);
             _enhancedSearch = GUILayout.Toggle(_enhancedSearch, enhancedContent, EditorStyles.toolbarButton, GUILayout.Width(75));
 
-            if (GUILayout.Button("Search", EditorStyles.toolbarButton, GUILayout.Width(60)))
+            if (GUILayout.Button(L10n.Search, EditorStyles.toolbarButton, GUILayout.Width(60)))
             {
                 if (!string.IsNullOrEmpty(_queryText?.Trim()))
                     ExecuteSearch(_queryText.Trim());
@@ -119,22 +121,22 @@ namespace SemanticSearch.Editor.UI
             if (_isSearching)
             {
                 EditorGUILayout.HelpBox(
-                    _enhancedSearch ? "Enhancing & Searching..." : "Searching...",
+                    _enhancedSearch ? L10n.EnhancingAndSearching : L10n.Searching,
                     MessageType.Info);
                 return;
             }
 
             if (_results.Count > 0)
             {
-                EditorGUILayout.LabelField($"Found {_results.Count} results ({_searchTime:F2}s)");
+                EditorGUILayout.LabelField(L10n.FoundResults(_results.Count, _searchTime));
             }
             else if (!string.IsNullOrEmpty(_queryText) && _searchTime > 0)
             {
-                EditorGUILayout.HelpBox("No results found.", MessageType.Warning);
+                EditorGUILayout.HelpBox(L10n.NoResultsFound, MessageType.Warning);
             }
 
             if (!string.IsNullOrEmpty(_enhancedQueryText))
-                EditorGUILayout.LabelField($"Enhanced: {_enhancedQueryText}", _enhancedLabel);
+                EditorGUILayout.LabelField(L10n.EnhancedQuery(_enhancedQueryText), _enhancedLabel);
         }
 
         void DrawResults()
@@ -153,7 +155,7 @@ namespace SemanticSearch.Editor.UI
 
             if (_displayCount < _results.Count)
             {
-                if (GUILayout.Button("Load More", GUILayout.Height(28)))
+                if (GUILayout.Button(L10n.LoadMore, GUILayout.Height(28)))
                     _displayCount += PageSize;
             }
         }

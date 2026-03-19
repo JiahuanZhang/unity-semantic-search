@@ -4,8 +4,10 @@ using System.Threading;
 using UnityEngine;
 using UnityEditor;
 using SemanticSearch.Editor.Core.Database;
+using SemanticSearch.Editor.Core.Localization;
 using SemanticSearch.Editor.Core.Pipeline;
 using SemanticSearch.Editor.Core.Watcher;
+using L10n = SemanticSearch.Editor.Core.Localization.L10n;
 
 namespace SemanticSearch.Editor.UI
 {
@@ -56,8 +58,8 @@ namespace SemanticSearch.Editor.UI
                 db = new SemanticSearchDB();
                 db.Open();
 
-                var label = forceReindex ? "Re-indexing" : "Indexing";
-                EditorUtility.DisplayProgressBar($"Semantic Search — {label}", "Scanning selected assets...", 0f);
+                var label = forceReindex ? L10n.LabelReindexing : L10n.LabelIndexing;
+                EditorUtility.DisplayProgressBar(L10n.ProgressBarTitle(label), L10n.ScanningSelectedAssets, 0f);
 
                 var changedGuids = AssetScanner.ScanAssets(db, assetPaths, forceReindex);
 
@@ -75,7 +77,7 @@ namespace SemanticSearch.Editor.UI
                 {
                     float pct = p.Total > 0 ? (float)p.Completed / p.Total : 0f;
                     EditorUtility.DisplayProgressBar(
-                        $"Semantic Search — {label}",
+                        L10n.ProgressBarTitle(label),
                         $"{p.Completed}/{p.Total}  {p.CurrentAsset}",
                         pct);
                 });

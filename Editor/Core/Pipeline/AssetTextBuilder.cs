@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using SemanticSearch.Editor.Core.LLM;
+using SemanticSearch.Editor.Core.Localization;
 
 namespace SemanticSearch.Editor.Core.Pipeline
 {
@@ -12,10 +13,7 @@ namespace SemanticSearch.Editor.Core.Pipeline
             if (string.IsNullOrEmpty(fileNameHint))
                 return VisionConstants.DefaultPrompt;
 
-            return $"{VisionConstants.DefaultPrompt}\n"
-                   + $"Asset type: {assetType}. "
-                   + $"File name hint: {fileNameHint}. "
-                   + "Treat this as auxiliary context and prioritize visual evidence.";
+            return $"{VisionConstants.DefaultPrompt}\n{L10n.VisionPromptContext(assetType, fileNameHint)}";
         }
 
         public static string BuildEmbeddingText(string assetPath, string caption, string assetType)

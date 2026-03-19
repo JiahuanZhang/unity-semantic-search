@@ -171,6 +171,23 @@
 2. 在 `AssetProcessorRegistry` 构造函数中注册
 3. 在 `AssetScanner.ExtensionToAssetType` 中添加扩展名映射
 
+## 多语言支持
+
+插件根据操作系统语言自动切换界面语言，支持以下语言：
+
+| 语言 | 系统语言 |
+|---|---|
+| 简体中文 | `Chinese` / `ChineseSimplified` / `ChineseTraditional` |
+| English | 其他所有语言（默认回退） |
+| 日本語 | `Japanese` |
+
+多语言覆盖范围：
+- **UI 界面**：所有窗口标题、按钮标签、状态提示、弹窗文本、设置面板等
+- **LLM 提示词**：Vision 描述提示词、搜索增强系统提示词均根据语言适配
+- **不涉及**：代码注释、日志输出、MenuItem 路径
+
+语言检测基于 `Application.systemLanguage`，在静态构造时确定，运行期间不变。本地化核心类为 `Editor/Core/Localization/L10n.cs`。
+
 ## 最近修复
 
 - 修复索引进行中操作 UI 导致编辑器卡住的问题：添加 `PRAGMA busy_timeout` 避免 SQLite 锁冲突立即阻塞；`EnsureSchema` 改为仅首次执行以消除不必要的 DDL 写争用；全面排查所有 DB 调用点，将 `RefreshAssetList`、`RefreshCounts`、`ClearDatabase`、`DeleteSelected` 改为异步，搜索引擎的 `GetCachedVectors`/`GetAssetSummariesByGuids` 移至后台线程，`OnPostprocessAllAssets` 的 DB 写操作通过 `delayCall` + `Task.Run` 延迟到后台执行，确保主线程不被 DB 操作阻塞。

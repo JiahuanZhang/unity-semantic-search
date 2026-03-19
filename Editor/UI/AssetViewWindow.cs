@@ -1,15 +1,17 @@
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using UnityEngine;
-    using UnityEditor;
-    using SemanticSearch.Editor.Core.Database;
-    using SemanticSearch.Editor.Core.LLM;
-    using SemanticSearch.Editor.Core.Pipeline;
-    using AssetStatus = SemanticSearch.Editor.Core.Database.AssetStatus;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using UnityEngine;
+using UnityEditor;
+using SemanticSearch.Editor.Core.Database;
+using SemanticSearch.Editor.Core.LLM;
+using SemanticSearch.Editor.Core.Localization;
+using SemanticSearch.Editor.Core.Pipeline;
+using AssetStatus = SemanticSearch.Editor.Core.Database.AssetStatus;
+using L10n = SemanticSearch.Editor.Core.Localization.L10n;
 
 namespace SemanticSearch.Editor.UI
 {
@@ -45,7 +47,7 @@ namespace SemanticSearch.Editor.UI
         public static void Open()
         {
             var win = GetWindow<AssetViewWindow>();
-            win.titleContent = new GUIContent("Semantic Asset View");
+            win.titleContent = new GUIContent(L10n.AssetViewTitle);
             win.Show();
         }
 
@@ -86,13 +88,14 @@ namespace SemanticSearch.Editor.UI
                     _filterDirty = true;
                 }
 
-                var statusOptions = new[] { "All", "Indexed", "Pending", "Error" };
-                int currentIdx = Array.IndexOf(statusOptions, _statusFilter);
+                var statusValues = new[] { "All", "Indexed", "Pending", "Error" };
+                var statusNames = new[] { L10n.StatusAll, L10n.StatusIndexed, L10n.StatusPending, L10n.StatusError };
+                int currentIdx = Array.IndexOf(statusValues, _statusFilter);
                 if (currentIdx < 0) currentIdx = 0;
-                int newIdx = EditorGUILayout.Popup(currentIdx, statusOptions, EditorStyles.toolbarPopup, GUILayout.Width(80));
+                int newIdx = EditorGUILayout.Popup(currentIdx, statusNames, EditorStyles.toolbarPopup, GUILayout.Width(80));
                 if (newIdx != currentIdx)
                 {
-                    _statusFilter = statusOptions[newIdx];
+                    _statusFilter = statusValues[newIdx];
                     _displayCount = PageSize;
                     _filterDirty = true;
                 }
@@ -106,12 +109,12 @@ namespace SemanticSearch.Editor.UI
             using (new EditorGUILayout.HorizontalScope())
             {
                 EditorGUILayout.LabelField(
-                    $"Total: {_allRecords.Count}  |  Showing {Mathf.Min(_displayCount, filtered.Count)}/{filtered.Count}  |  Selected: {_selectedGuids.Count}",
+                    L10n.AssetViewStatusBar(_allRecords.Count, Mathf.Min(_displayCount, filtered.Count), filtered.Count, _selectedGuids.Count),
                     _grayMiniLabel);
 
                 GUILayout.FlexibleSpace();
 
-                if (GUILayout.Button("Select All Visible", EditorStyles.miniButtonLeft, GUILayout.Width(100)))
+                if (GUILayout.Button(L10n.SelectAllVisible, EditorStyles.miniButtonLeft, GUILayout.Width(100)))
                 {
                     int count = Mathf.Min(_displayCount, filtered.Count);
                     for (int i = 0; i < count; i++)
@@ -119,7 +122,7 @@ namespace SemanticSearch.Editor.UI
                     Repaint();
                 }
 
-                if (GUILayout.Button("Clear Selection", EditorStyles.miniButtonRight, GUILayout.Width(100)))
+                if (GUILayout.Button(L10n.ClearSelection, EditorStyles.miniButtonRight, GUILayout.Width(100)))
                 {
                     _selectedGuids.Clear();
                     Repaint();
@@ -151,7 +154,7 @@ namespace SemanticSearch.Editor.UI
 
             if (_displayCount < filtered.Count)
             {
-                if (GUILayout.Button($"Load More ({filtered.Count - _displayCount} remaining)", GUILayout.Height(22)))
+                if (GUILayout.Button(L10n.LoadMoreRemaining(filtered.Count - _displayCount), GUILayout.Height(22)))
                     _displayCount += PageSize;
             }
         }
@@ -193,7 +196,7 @@ namespace SemanticSearch.Editor.UI
                 var statusStyle = record.Status == AssetStatus.Indexed ? _statusIndexedStyle
                     : record.Status == AssetStatus.Error ? _statusErrorStyle
                     : _statusPendingStyle;
-                GUILayout.Label(record.Status.ToString(), statusStyle);
+                GUILayout.Label(L10n.LocalizeStatus(record.Status.ToString()), statusStyle);
             }
             EditorGUILayout.EndVertical();
 
@@ -246,18 +249,18 @@ namespace SemanticSearch.Editor.UI
             {
                 EditorGUI.BeginDisabledGroup(_selectedGuids.Count == 0 || _isRunning);
 
-                if (GUILayout.Button($"Re-index Selected ({_selectedGuids.Count})", GUILayout.Height(24)))
+                if (GUILayout.Button(L10n.ReindexSelectedBtn(_selectedGuids.Count), GUILayout.Height(24)))
                     ReindexSelected();
 
-                if (GUILayout.Button($"Delete Selected ({_selectedGuids.Count})", GUILayout.Height(24)))
+                if (GUILayout.Button(L10n.DeleteSelectedBtn(_selectedGuids.Count), GUILayout.Height(24)))
                     DeleteSelected();
 
                 EditorGUI.EndDisabledGroup();
 
-                if (_isRunning && GUILayout.Button("Cancel", GUILayout.Height(24), GUILayout.Width(60)))
+                if (_isRunning && GUILayout.Button(L10n.Cancel, GUILayout.Height(24), GUILayout.Width(60)))
                     _cts?.Cancel();
 
-                if (GUILayout.Button("Refresh", GUILayout.Height(24), GUILayout.Width(70)))
+                if (GUILayout.Button(L10n.Refresh, GUILayout.Height(24), GUILayout.Width(70)))
                     RefreshAssetList();
             }
         }
@@ -292,7 +295,7 @@ namespace SemanticSearch.Editor.UI
         {
             if (_isLoading) return;
             _isLoading = true;
-            _statusText = "Loading...";
+            _statusText = L10n.Loading;
             Repaint();
 
             try
@@ -327,7 +330,7 @@ namespace SemanticSearch.Editor.UI
                 _allRecords = new List<AssetRecord>();
                 _filteredRecords = new List<AssetRecord>();
                 _filterDirty = false;
-                _statusText = $"Load failed: {e.Message}";
+                _statusText = L10n.LoadFailed(e.Message);
                 Debug.LogError($"[SemanticSearch] Asset view refresh failed: {e}");
             }
             finally
@@ -345,7 +348,7 @@ namespace SemanticSearch.Editor.UI
             if (guidsToReindex.Count == 0) return;
 
             _isRunning = true;
-            _statusText = $"Re-indexing {guidsToReindex.Count} assets...";
+            _statusText = L10n.ReindexingAssets(guidsToReindex.Count);
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
 
@@ -361,7 +364,7 @@ namespace SemanticSearch.Editor.UI
                 var pipeline = new IndexPipeline(db, config);
                 var progress = new Progress<BatchProgress>(p =>
                 {
-                    _statusText = $"Re-indexing {p.Completed}/{p.Total} — {p.CurrentAsset}";
+                    _statusText = L10n.ReindexingProgress(p.Completed, p.Total, p.CurrentAsset);
                     Repaint();
                 });
 
@@ -369,17 +372,17 @@ namespace SemanticSearch.Editor.UI
 
                 _selectedGuids.Clear();
                 RefreshAssetList();
-                _statusText = "Re-index done.";
+                _statusText = L10n.ReindexDone;
             }
             catch (OperationCanceledException)
             {
-                _statusText = "Re-index cancelled.";
+                _statusText = L10n.ReindexCancelled;
             }
             catch (Exception e)
             {
                 try
                 {
-                    _statusText = $"Error: {e.Message}";
+                    _statusText = L10n.ErrorMessage(e.Message);
                     Debug.LogError($"[SemanticSearch] {e}");
                 }
                 catch (Exception ex2) { Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
@@ -401,12 +404,12 @@ namespace SemanticSearch.Editor.UI
             var guidsToDelete = _selectedGuids.ToList();
             if (guidsToDelete.Count == 0) return;
 
-            if (!EditorUtility.DisplayDialog("Delete Selected",
-                    $"Delete {guidsToDelete.Count} selected records from database?",
-                    "Delete", "Cancel"))
+            if (!EditorUtility.DisplayDialog(L10n.DeleteSelectedTitle,
+                    L10n.DeleteSelectedMessage(guidsToDelete.Count),
+                    L10n.Delete, L10n.Cancel))
                 return;
 
-            _statusText = $"Deleting {guidsToDelete.Count} records...";
+            _statusText = L10n.DeletingRecords(guidsToDelete.Count);
             Repaint();
 
             try
@@ -420,12 +423,12 @@ namespace SemanticSearch.Editor.UI
                     }
                 });
                 _selectedGuids.Clear();
-                _statusText = $"Deleted {guidsToDelete.Count} records.";
+                _statusText = L10n.DeletedRecords(guidsToDelete.Count);
                 RefreshAssetList();
             }
             catch (Exception e)
             {
-                _statusText = $"Delete failed: {e.Message}";
+                _statusText = L10n.DeleteFailed(e.Message);
                 Debug.LogError($"[SemanticSearch] Delete failed: {e}");
             }
             Repaint();
@@ -531,7 +534,7 @@ namespace SemanticSearch.Editor.UI
         public static void Show(AssetRecord record)
         {
             var win = CreateInstance<AssetDetailPopup>();
-            win.titleContent = new GUIContent("Asset Detail");
+            win.titleContent = new GUIContent(L10n.AssetDetailTitle);
             win._record = record;
             win.minSize = new Vector2(420, 360);
             win.maxSize = new Vector2(600, 500);
@@ -555,7 +558,7 @@ namespace SemanticSearch.Editor.UI
         {
             if (_record == null)
             {
-                EditorGUILayout.HelpBox("No record.", MessageType.Warning);
+                EditorGUILayout.HelpBox(L10n.NoRecord, MessageType.Warning);
                 return;
             }
 
@@ -571,16 +574,16 @@ namespace SemanticSearch.Editor.UI
                 EditorGUILayout.Space(4);
             }
 
-            DrawField("GUID", _record.Guid);
-            DrawField("Path", _record.AssetPath);
-            DrawField("Status", _record.Status.ToString());
-            DrawField("MD5", _record.Md5);
-            DrawField("Vector Dim", _record.VectorDim.ToString());
-            DrawField("Updated At", _record.UpdatedAt);
+            DrawField(L10n.FieldGUID, _record.Guid);
+            DrawField(L10n.FieldPath, _record.AssetPath);
+            DrawField(L10n.FieldStatus, L10n.LocalizeStatus(_record.Status.ToString()));
+            DrawField(L10n.FieldMD5, _record.Md5);
+            DrawField(L10n.FieldVectorDim, _record.VectorDim.ToString());
+            DrawField(L10n.FieldUpdatedAt, _record.UpdatedAt);
 
             EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Caption", EditorStyles.boldLabel);
-            EditorGUILayout.TextArea(_record.Caption ?? "(none)", EditorStyles.wordWrappedLabel);
+            EditorGUILayout.LabelField(L10n.FieldCaption, EditorStyles.boldLabel);
+            EditorGUILayout.TextArea(_record.Caption ?? L10n.None, EditorStyles.wordWrappedLabel);
 
             EditorGUILayout.EndScrollView();
         }

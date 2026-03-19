@@ -10,6 +10,7 @@ using SemanticSearch.Editor.Core.LLM;
 using SemanticSearch.Editor.Core.Pipeline;
 using SemanticSearch.Editor.Core.Utils;
 using SemanticSearch.Editor.Core.Watcher;
+using L10n = SemanticSearch.Editor.Core.Localization.L10n;
 using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace SemanticSearch.Editor.UI
@@ -99,14 +100,14 @@ namespace SemanticSearch.Editor.UI
         void DrawAdminToggle()
         {
             EditorGUI.BeginChangeCheck();
-            bool newValue = EditorGUILayout.Toggle("Admin Mode", _settings.IsAdmin);
+            bool newValue = EditorGUILayout.Toggle(L10n.AdminMode, _settings.IsAdmin);
             if (EditorGUI.EndChangeCheck() && newValue != _settings.IsAdmin)
             {
                 if (newValue)
                 {
-                    if (EditorUtility.DisplayDialog("Admin Mode",
-                            "Warning: Admin mode is intended only for developers.\nAre you sure you want to enable it?",
-                            "Confirm", "Cancel"))
+                    if (EditorUtility.DisplayDialog(L10n.AdminModeDialogTitle,
+                            L10n.AdminModeWarning,
+                            L10n.Confirm, L10n.Cancel))
                     {
                         _settings.IsAdmin = true;
                         _settings.Save();
@@ -125,20 +126,20 @@ namespace SemanticSearch.Editor.UI
             var names = _settings.Providers.Select(p => p.Name).ToArray();
             if (names.Length == 0) return;
 
-            EditorGUILayout.LabelField("Role Provider Assignment", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(L10n.RoleProviderAssignment, EditorStyles.boldLabel);
             using (new EditorGUI.IndentLevelScope())
             {
                 EditorGUI.BeginChangeCheck();
 
                 _settings.AdminProviderIndex = EditorGUILayout.Popup(
-                    "Admin Provider", _settings.AdminProviderIndex, names);
+                    L10n.AdminProvider, _settings.AdminProviderIndex, names);
                 _settings.UserProviderIndex = EditorGUILayout.Popup(
-                    "User Provider", _settings.UserProviderIndex, names);
+                    L10n.UserProvider, _settings.UserProviderIndex, names);
 
-                var current = _settings.IsAdmin ? "Admin" : "User";
+                var current = _settings.IsAdmin ? L10n.RoleAdmin : L10n.RoleUser;
                 var currentProvider = _settings.GetRoleProvider();
                 EditorGUILayout.HelpBox(
-                    $"Current role: {current}, using provider: {currentProvider.Name}",
+                    L10n.CurrentRoleInfo(current, currentProvider.Name),
                     MessageType.Info);
 
                 if (EditorGUI.EndChangeCheck())
@@ -148,7 +149,7 @@ namespace SemanticSearch.Editor.UI
 
         void DrawLLMConfiguration()
         {
-            _foldLLM = EditorGUILayout.Foldout(_foldLLM, "LLM Configuration", true, EditorStyles.foldoutHeader);
+            _foldLLM = EditorGUILayout.Foldout(_foldLLM, L10n.LLMConfiguration, true, EditorStyles.foldoutHeader);
             if (!_foldLLM) return;
 
             using (new EditorGUI.IndentLevelScope())
@@ -173,7 +174,7 @@ namespace SemanticSearch.Editor.UI
 
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginChangeCheck();
-            int newIdx = EditorGUILayout.Popup("Active Provider", _settings.ActiveProviderIndex, names);
+            int newIdx = EditorGUILayout.Popup(L10n.ActiveProvider, _settings.ActiveProviderIndex, names);
             if (EditorGUI.EndChangeCheck())
             {
                 _settings.ActiveProviderIndex = newIdx;
@@ -182,7 +183,7 @@ namespace SemanticSearch.Editor.UI
 
             if (GUILayout.Button("+", GUILayout.Width(24)))
             {
-                providers.Add(new LLMProviderConfig { Name = $"Provider {providers.Count + 1}" });
+                providers.Add(new LLMProviderConfig { Name = L10n.NewProviderName(providers.Count + 1) });
                 _settings.ActiveProviderIndex = providers.Count - 1;
                 _settings.Save();
             }
@@ -190,8 +191,9 @@ namespace SemanticSearch.Editor.UI
             EditorGUI.BeginDisabledGroup(providers.Count <= 1);
             if (GUILayout.Button("-", GUILayout.Width(24)))
             {
-                if (EditorUtility.DisplayDialog("Delete Provider",
-                        $"Delete \"{providers[_settings.ActiveProviderIndex].Name}\"?", "Delete", "Cancel"))
+                if (EditorUtility.DisplayDialog(L10n.DeleteProviderTitle,
+                        L10n.DeleteProviderMessage(providers[_settings.ActiveProviderIndex].Name),
+                        L10n.Delete, L10n.Cancel))
                 {
                     providers.RemoveAt(_settings.ActiveProviderIndex);
                     _settings.ActiveProviderIndex = Mathf.Clamp(
@@ -210,20 +212,20 @@ namespace SemanticSearch.Editor.UI
 
             EditorGUI.BeginChangeCheck();
 
-            provider.Name = EditorGUILayout.TextField("Provider Name", provider.Name);
+            provider.Name = EditorGUILayout.TextField(L10n.ProviderName, provider.Name);
 
             var oldType = provider.ProviderType;
-            provider.ProviderType = (LLMProviderType)EditorGUILayout.EnumPopup("Provider Type", provider.ProviderType);
+            provider.ProviderType = (LLMProviderType)EditorGUILayout.EnumPopup(L10n.ProviderType, provider.ProviderType);
             if (provider.ProviderType != oldType)
                 ApplyProviderTypeDefaults(provider);
 
             DrawApiKeyFieldWithPersistToggle(provider, () => _settings.SetApiKey(provider.ApiKey));
 
             string baseUrlLabel = provider.ProviderType == LLMProviderType.Gemini
-                ? "Base URL (Gemini API)" : "Base URL (OpenAI-compatible)";
+                ? L10n.BaseUrlGemini : L10n.BaseUrlOpenAI;
             provider.BaseUrl = EditorGUILayout.TextField(baseUrlLabel, provider.BaseUrl);
-            provider.VLModel = EditorGUILayout.TextField("Vision Model", provider.VLModel);
-            provider.EmbeddingModel = EditorGUILayout.TextField("Embedding Model", provider.EmbeddingModel);
+            provider.VLModel = EditorGUILayout.TextField(L10n.VisionModel, provider.VLModel);
+            provider.EmbeddingModel = EditorGUILayout.TextField(L10n.EmbeddingModel, provider.EmbeddingModel);
 
             if (EditorGUI.EndChangeCheck())
                 _settings.Save();
@@ -236,21 +238,21 @@ namespace SemanticSearch.Editor.UI
         {
             var provider = _settings.GetRoleProvider();
 
-            EditorGUILayout.LabelField("Provider", provider.Name, EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(L10n.ProviderLabel, provider.Name, EditorStyles.boldLabel);
 
             EditorGUI.BeginChangeCheck();
 
-            provider.ProviderType = (LLMProviderType)EditorGUILayout.EnumPopup("Provider Type", provider.ProviderType);
+            provider.ProviderType = (LLMProviderType)EditorGUILayout.EnumPopup(L10n.ProviderType, provider.ProviderType);
 
             DrawApiKeyFieldWithPersistToggle(
                 provider,
                 () => _settings.SaveApiKeyForProvider(_settings.UserProviderIndex));
 
             string baseUrlLabel = provider.ProviderType == LLMProviderType.Gemini
-                ? "Base URL (Gemini API)" : "Base URL (OpenAI-compatible)";
+                ? L10n.BaseUrlGemini : L10n.BaseUrlOpenAI;
             provider.BaseUrl = EditorGUILayout.TextField(baseUrlLabel, provider.BaseUrl);
-            provider.VLModel = EditorGUILayout.TextField("Vision Model", provider.VLModel);
-            provider.EmbeddingModel = EditorGUILayout.TextField("Embedding Model", provider.EmbeddingModel);
+            provider.VLModel = EditorGUILayout.TextField(L10n.VisionModel, provider.VLModel);
+            provider.EmbeddingModel = EditorGUILayout.TextField(L10n.EmbeddingModel, provider.EmbeddingModel);
 
             if (EditorGUI.EndChangeCheck())
                 _settings.Save();
@@ -267,7 +269,7 @@ namespace SemanticSearch.Editor.UI
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(EditorGUI.indentLevel * 15);
             EditorGUI.BeginDisabledGroup(_isTestingLlm);
-            if (GUILayout.Button(_isTestingLlm ? "Testing..." : "Test LLM", GUILayout.Height(22), GUILayout.Width(100)))
+            if (GUILayout.Button(_isTestingLlm ? L10n.TestingBtn : L10n.TestLLM, GUILayout.Height(22), GUILayout.Width(100)))
                 TestLlmConnectionAsync(new LLMProviderConfig(provider));
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
@@ -276,10 +278,10 @@ namespace SemanticSearch.Editor.UI
         void DrawApiKeyFieldWithPersistToggle(LLMProviderConfig provider, Action onApiKeyChanged)
         {
             EditorGUILayout.BeginHorizontal();
-            var apiKey = EditorGUILayout.PasswordField("API Key", provider.ApiKey ?? "");
+            var apiKey = EditorGUILayout.PasswordField(L10n.ApiKey, provider.ApiKey ?? "");
             var saveToJson = GUILayout.Toggle(
                 provider.SaveApiKeyToJson,
-                new GUIContent("Save", "勾选后会将 API Key 写入 Settings.json"),
+                new GUIContent(L10n.Save, L10n.SaveApiKeyTooltip),
                 GUILayout.Width(56));
             EditorGUILayout.EndHorizontal();
 
@@ -295,18 +297,18 @@ namespace SemanticSearch.Editor.UI
         async void TestLlmConnectionAsync(LLMProviderConfig provider)
         {
             _isTestingLlm = true;
-            _llmTestStatus = "Testing current provider...";
+            _llmTestStatus = L10n.TestingProvider;
             _llmTestStatusType = MessageType.Info;
             RefreshSettingsWindow();
 
             try
             {
                 if (string.IsNullOrWhiteSpace(provider.ApiKey))
-                    throw new InvalidOperationException("API Key is empty.");
+                    throw new InvalidOperationException(L10n.ApiKeyEmpty);
                 if (string.IsNullOrWhiteSpace(provider.BaseUrl))
-                    throw new InvalidOperationException("Base URL is empty.");
+                    throw new InvalidOperationException(L10n.BaseUrlEmpty);
                 if (string.IsNullOrWhiteSpace(provider.EmbeddingModel))
-                    throw new InvalidOperationException("Embedding Model is empty.");
+                    throw new InvalidOperationException(L10n.EmbeddingModelEmpty);
 
                 var config = new LLMApiConfig
                 {
@@ -325,12 +327,12 @@ namespace SemanticSearch.Editor.UI
                 if (vector == null || vector.Length == 0)
                     throw new Exception("Embedding response is empty.");
 
-                _llmTestStatus = $"LLM is available. Embedding dims: {vector.Length}.";
+                _llmTestStatus = L10n.LLMAvailable(vector.Length);
                 _llmTestStatusType = MessageType.Info;
             }
             catch (Exception e)
             {
-                _llmTestStatus = $"LLM test failed: {e.Message}";
+                _llmTestStatus = L10n.LLMTestFailed(e.Message);
                 _llmTestStatusType = MessageType.Error;
             }
             finally
@@ -359,15 +361,15 @@ namespace SemanticSearch.Editor.UI
 
         void DrawWorkflowControl()
         {
-            _foldWorkflow = EditorGUILayout.Foldout(_foldWorkflow, "Workflow Control", true, EditorStyles.foldoutHeader);
+            _foldWorkflow = EditorGUILayout.Foldout(_foldWorkflow, L10n.WorkflowControl, true, EditorStyles.foldoutHeader);
             if (!_foldWorkflow) return;
 
             using (new EditorGUI.IndentLevelScope())
             {
                 EditorGUI.BeginChangeCheck();
 
-                _settings.AutoIndexOnImport = EditorGUILayout.Toggle("Auto-Index On Import", _settings.AutoIndexOnImport);
-                _settings.MaxConcurrent = EditorGUILayout.IntSlider("Max Concurrent Requests", _settings.MaxConcurrent, 1, 10);
+                _settings.AutoIndexOnImport = EditorGUILayout.Toggle(L10n.AutoIndexOnImport, _settings.AutoIndexOnImport);
+                _settings.MaxConcurrent = EditorGUILayout.IntSlider(L10n.MaxConcurrentRequests, _settings.MaxConcurrent, 1, 10);
 
                 if (EditorGUI.EndChangeCheck())
                     _settings.Save();
@@ -376,25 +378,22 @@ namespace SemanticSearch.Editor.UI
 
         void DrawAssetFilterRules()
         {
-            _foldFilter = EditorGUILayout.Foldout(_foldFilter, "Asset Filter Rules", true, EditorStyles.foldoutHeader);
+            _foldFilter = EditorGUILayout.Foldout(_foldFilter, L10n.AssetFilterRules, true, EditorStyles.foldoutHeader);
             if (!_foldFilter) return;
 
             using (new EditorGUI.IndentLevelScope())
             {
                 EditorGUI.BeginChangeCheck();
 
-                DrawFilterList("Include Rules (match at least one)", _settings.IncludeFilters);
+                DrawFilterList(L10n.IncludeRules, _settings.IncludeFilters);
                 EditorGUILayout.Space(4);
-                DrawFilterList("Exclude Rules (excluded if matched)", _settings.ExcludeFilters);
+                DrawFilterList(L10n.ExcludeRules, _settings.ExcludeFilters);
 
                 if (EditorGUI.EndChangeCheck())
                     _settings.Save();
 
                 EditorGUILayout.Space(2);
-                EditorGUILayout.HelpBox(
-                    "Glob patterns: ** (recursive match), * (single level)\n" +
-                    "Examples: Assets/UI/**, *.png, Assets/Textures/Icons/*",
-                    MessageType.Info);
+                EditorGUILayout.HelpBox(L10n.GlobPatternHint, MessageType.Info);
             }
         }
 
@@ -419,20 +418,20 @@ namespace SemanticSearch.Editor.UI
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Space(EditorGUI.indentLevel * 15);
-                if (GUILayout.Button("+ Add Rule", GUILayout.Width(100), GUILayout.Height(20)))
+                if (GUILayout.Button(L10n.AddRule, GUILayout.Width(100), GUILayout.Height(20)))
                     filters.Add("");
             }
         }
 
         void DrawDatabaseMaintenance()
         {
-            _foldDatabase = EditorGUILayout.Foldout(_foldDatabase, "Database Maintenance", true, EditorStyles.foldoutHeader);
+            _foldDatabase = EditorGUILayout.Foldout(_foldDatabase, L10n.DatabaseMaintenance, true, EditorStyles.foldoutHeader);
             if (!_foldDatabase) return;
 
             using (new EditorGUI.IndentLevelScope())
             {
-                EditorGUILayout.LabelField("Indexed Assets", _indexedCount.ToString("N0"));
-                EditorGUILayout.LabelField("Pending Assets", _pendingCount.ToString("N0"));
+                EditorGUILayout.LabelField(L10n.IndexedAssets, _indexedCount.ToString("N0"));
+                EditorGUILayout.LabelField(L10n.PendingAssets, _pendingCount.ToString("N0"));
 
                 if (!string.IsNullOrEmpty(_statusText))
                 {
@@ -447,22 +446,22 @@ namespace SemanticSearch.Editor.UI
                     GUILayout.Space(EditorGUI.indentLevel * 15);
                     EditorGUI.BeginDisabledGroup(_isRunning);
 
-                    if (GUILayout.Button("Scan & Update", GUILayout.Height(24)))
+                    if (GUILayout.Button(L10n.ScanAndUpdate, GUILayout.Height(24)))
                         RunScanAndIndex();
 
-                    if (GUILayout.Button("Clear Database", GUILayout.Height(24)))
+                    if (GUILayout.Button(L10n.ClearDatabase, GUILayout.Height(24)))
                         ClearDatabase();
 
                     EditorGUI.EndDisabledGroup();
 
-                    if (_isRunning && GUILayout.Button("Cancel", GUILayout.Height(24)))
+                    if (_isRunning && GUILayout.Button(L10n.Cancel, GUILayout.Height(24)))
                         _cts?.Cancel();
                 }
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     GUILayout.Space(EditorGUI.indentLevel * 15);
-                    if (GUILayout.Button("Open Database Folder", GUILayout.Height(22)))
+                    if (GUILayout.Button(L10n.OpenDatabaseFolder, GUILayout.Height(22)))
                         OpenDatabaseFolder();
                 }
             }
@@ -476,13 +475,13 @@ namespace SemanticSearch.Editor.UI
             if (System.IO.Directory.Exists(folder))
                 EditorUtility.RevealInFinder(folder);
             else
-                EditorUtility.DisplayDialog("Semantic Search", "Database folder does not exist yet.", "OK");
+                EditorUtility.DisplayDialog(L10n.SemanticSearch, L10n.DatabaseFolderNotExist, L10n.OK);
         }
 
         async void RunScanAndIndex()
         {
             _isRunning = true;
-            _statusText = "Scanning assets...";
+            _statusText = L10n.ScanningAssets;
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
 
@@ -498,19 +497,19 @@ namespace SemanticSearch.Editor.UI
                 var scanSw = Stopwatch.StartNew();
                 var changedGuids = AssetScanner.ScanAll(db, progress =>
                 {
-                    _statusText = $"Scanning... {progress:P0}";
+                    _statusText = L10n.ScanningProgress($"{progress:P0}");
                 });
                 scanSw.Stop();
 
                 RefreshCounts(db);
-                _statusText = $"Indexing {_pendingCount} assets...";
+                _statusText = L10n.IndexingAssets(_pendingCount);
                 int pendingBeforeIndex = _pendingCount;
 
                 var config = _settings.ToLLMApiConfig();
                 var pipeline = new IndexPipeline(db, config);
                 var progress = new Progress<BatchProgress>(p =>
                 {
-                    _statusText = $"Indexing {p.Completed}/{p.Total} — {p.CurrentAsset}";
+                    _statusText = L10n.IndexingProgress(p.Completed, p.Total, p.CurrentAsset);
                     RefreshSettingsWindow();
                 });
 
@@ -527,9 +526,7 @@ namespace SemanticSearch.Editor.UI
                     ? batchResult.Completed / indexSw.Elapsed.TotalSeconds
                     : 0d;
 
-                _statusText =
-                    $"Done. Scan {scanSw.Elapsed.TotalSeconds:F2}s, " +
-                    $"Index {indexSw.Elapsed.TotalSeconds:F2}s ({indexThroughput:F2} assets/s).";
+                _statusText = L10n.ScanIndexDone(scanSw.Elapsed.TotalSeconds, indexSw.Elapsed.TotalSeconds, indexThroughput);
 
                 Debug.Log(
                     $"[SemanticSearch] Scan+Index perf: changed={changedGuids.Count}, pendingBeforeIndex={pendingBeforeIndex}, " +
@@ -540,13 +537,13 @@ namespace SemanticSearch.Editor.UI
             }
             catch (OperationCanceledException)
             {
-                _statusText = "Cancelled.";
+                _statusText = L10n.Cancelled;
             }
             catch (Exception e)
             {
                 try
                 {
-                    _statusText = $"Error: {e.Message}";
+                    _statusText = L10n.ErrorMessage(e.Message);
                     Debug.LogError($"[SemanticSearch] {e}");
                 }
                 catch (Exception ex2) { Debug.LogWarning($"[SemanticSearch] Cleanup: {ex2.Message}"); }
@@ -566,12 +563,12 @@ namespace SemanticSearch.Editor.UI
         async void ClearDatabase()
         {
             if (!EditorUtility.DisplayDialog(
-                    "Clear Database",
-                    "This will delete ALL indexed data. Are you sure?",
-                    "Delete All", "Cancel"))
+                    L10n.ClearDatabase,
+                    L10n.ClearDatabaseMessage,
+                    L10n.DeleteAll, L10n.Cancel))
                 return;
 
-            _statusText = "Clearing...";
+            _statusText = L10n.Clearing;
             RefreshSettingsWindow();
 
             try
@@ -584,12 +581,12 @@ namespace SemanticSearch.Editor.UI
                         db.DeleteAll();
                     }
                 });
-                _statusText = "Database cleared.";
+                _statusText = L10n.DatabaseCleared;
                 RefreshCountsAsync();
             }
             catch (Exception e)
             {
-                _statusText = $"Clear failed: {e.Message}";
+                _statusText = L10n.ClearFailed(e.Message);
                 Debug.LogError($"[SemanticSearch] Clear failed: {e}");
             }
             RefreshSettingsWindow();
@@ -636,14 +633,12 @@ namespace SemanticSearch.Editor.UI
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField("Indexed Assets", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField(L10n.IndexedAssets, EditorStyles.boldLabel);
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Open Asset View", GUILayout.Height(22), GUILayout.Width(130)))
+                if (GUILayout.Button(L10n.OpenAssetView, GUILayout.Height(22), GUILayout.Width(130)))
                     AssetViewWindow.Open();
             }
-            EditorGUILayout.HelpBox(
-                "Open Asset browsing Window via: Window > Semantic Search > Asset View",
-                MessageType.Info);
+            EditorGUILayout.HelpBox(L10n.OpenAssetViewHint, MessageType.Info);
         }
 
         void RefreshSettingsWindow()
