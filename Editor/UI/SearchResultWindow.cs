@@ -27,7 +27,7 @@ namespace SemanticSearch.Editor.UI
         readonly Dictionary<string, Texture2D> _thumbnailCache = new Dictionary<string, Texture2D>();
         readonly Queue<string> _thumbnailOrder = new Queue<string>();
 
-        const int PageSize = 20;
+        const int PageSize = 30;
         const int ThumbnailCacheLimit = 200;
         int _displayCount = PageSize;
 
@@ -265,7 +265,7 @@ namespace SemanticSearch.Editor.UI
                     db.Open();
                     var embedding = LLMClientFactory.CreateEmbeddingClient(config, http);
                     var engine = new VectorSearchEngine(db, embedding);
-                    _results = await engine.SearchAsync(searchText);
+                    _results = await engine.SearchAsync(searchText, topK: 300);
                 }
 
                 sw.Stop();

@@ -56,19 +56,27 @@ namespace SemanticSearch.Editor.Core.Pipeline
             if (preview == null)
                 preview = AssetPreview.GetMiniThumbnail(asset);
 
-            return preview != null ? preview.EncodeToPNG() : null;
+            if (preview == null || !preview.isReadable) return null;
+
+            return preview.EncodeToPNG();
         }
 
         public async Task<AssetProcessResult> ProcessAsync(string assetPath, CancellationToken ct)
         {
             var imageBytes = GetAssetData(assetPath);
-            if (imageBytes == null || imageBytes.Length == 0)
-                return AssetProcessResult.Fail($"Failed to get {AssetType} preview: {assetPath}");
-
             ct.ThrowIfCancellationRequested();
 
-            var prompt = AssetTextBuilder.BuildVisionPrompt(assetPath, AssetType);
-            var caption = await VlClient.RequestCaptionAsync(imageBytes, prompt);
+            string caption;
+            if (imageBytes != null && imageBytes.Length > 0)
+            {
+                var prompt = AssetTextBuilder.BuildVisionPrompt(assetPath, AssetType);
+                caption = await VlClient.RequestCaptionAsync(imageBytes, prompt);
+            }
+            else
+            {
+                caption = $"Unity {AssetType} asset file at {assetPath}";
+            }
+
             ct.ThrowIfCancellationRequested();
 
             var embeddingText = AssetTextBuilder.BuildEmbeddingText(assetPath, caption, AssetType);

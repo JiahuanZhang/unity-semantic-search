@@ -39,7 +39,7 @@ namespace SemanticSearch.Editor.Core.Search
             }
         }
 
-        public async Task<List<SearchResult>> SearchAsync(string queryText, int topK = 20, float minSimilarity = 0.3f)
+        public async Task<List<SearchResult>> SearchAsync(string queryText, int topK = 30, float minSimilarity = 0.3f)
         {
             if (topK <= 0)
                 return new List<SearchResult>();
