@@ -1,6 +1,6 @@
 {
   "name": "com.vectorz.semantic-search",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "displayName": "Semantic Search",
   "description": "A semantic asset search system for Unity that leverages large language models to enable natural language querying of project assets. It allows developers to find prefabs, textures, and other resources based on meaning and context rather than just filenames, significantly improving workflow efficiency in large-scale game development projects.",
   "unity": "2022.3",

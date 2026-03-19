@@ -20,11 +20,8 @@ namespace SemanticSearch.Editor.Core.Pipeline
 
         public static string BuildEmbeddingText(string assetPath, string caption, string assetType)
         {
-            var sb = new StringBuilder(256);
-            sb.Append("asset_type: ").Append(assetType).Append('\n');
-            sb.Append("file_name: ").Append(BuildFileNameHint(assetPath)).Append('\n');
-            sb.Append("caption: ").Append(caption ?? string.Empty);
-            return sb.ToString();
+            var fileName = BuildFileNameHint(assetPath);
+            return $"Asset type: {assetType}, File name: {fileName}. Description: {caption}";
         }
 
         static string BuildFileNameHint(string assetPath)

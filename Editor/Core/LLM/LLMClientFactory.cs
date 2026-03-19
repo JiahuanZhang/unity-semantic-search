@@ -23,5 +23,16 @@ namespace SemanticSearch.Editor.Core.LLM
                     return new EmbeddingClient(config, http);
             }
         }
+
+        public static IChatClient CreateChatClient(LLMApiConfig config, LLMHttpClient http)
+        {
+            switch (config.ProviderType)
+            {
+                case LLMProviderType.Gemini:
+                    return new GeminiChatClient(config, http);
+                default:
+                    return new ChatClient(config, http);
+            }
+        }
     }
 }

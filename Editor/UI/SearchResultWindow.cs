@@ -19,6 +19,8 @@ namespace SemanticSearch.Editor.UI
         List<SearchResult> _results = new List<SearchResult>();
         bool _isSearching;
         float _searchTime;
+        bool _enhancedSearch;
+        string _enhancedQueryText;
         Vector2 _scrollPosition;
         readonly Dictionary<string, Texture2D> _thumbnailCache = new Dictionary<string, Texture2D>();
         readonly Queue<string> _thumbnailOrder = new Queue<string>();
@@ -31,6 +33,7 @@ namespace SemanticSearch.Editor.UI
         GUIStyle _grayMiniLabel;
         GUIStyle _italicLabel;
         GUIStyle _greenLabel;
+        GUIStyle _enhancedLabel;
 
         public static void Show(string queryText)
         {
@@ -65,6 +68,13 @@ namespace SemanticSearch.Editor.UI
                 normal = { textColor = new Color(0.3f, 0.8f, 0.3f) },
                 fontStyle = FontStyle.Bold
             };
+
+            _enhancedLabel = new GUIStyle(EditorStyles.miniLabel)
+            {
+                fontStyle = FontStyle.Italic,
+                normal = { textColor = new Color(0.4f, 0.7f, 1f) },
+                wordWrap = true
+            };
         }
 
         void OnGUI()
@@ -92,6 +102,9 @@ namespace SemanticSearch.Editor.UI
                     ExecuteSearch(_queryText.Trim());
             }
 
+            var enhancedContent = new GUIContent("Enhanced", "使用大模型优化搜索关键词，提高语义匹配准确度");
+            _enhancedSearch = GUILayout.Toggle(_enhancedSearch, enhancedContent, EditorStyles.toolbarButton, GUILayout.Width(75));
+
             if (GUILayout.Button("Search", EditorStyles.toolbarButton, GUILayout.Width(60)))
             {
                 if (!string.IsNullOrEmpty(_queryText?.Trim()))
@@ -105,9 +118,13 @@ namespace SemanticSearch.Editor.UI
         {
             if (_isSearching)
             {
-                EditorGUILayout.HelpBox("Searching...", MessageType.Info);
+                EditorGUILayout.HelpBox(
+                    _enhancedSearch ? "Enhancing & Searching..." : "Searching...",
+                    MessageType.Info);
+                return;
             }
-            else if (_results.Count > 0)
+
+            if (_results.Count > 0)
             {
                 EditorGUILayout.LabelField($"Found {_results.Count} results ({_searchTime:F2}s)");
             }
@@ -115,6 +132,9 @@ namespace SemanticSearch.Editor.UI
             {
                 EditorGUILayout.HelpBox("No results found.", MessageType.Warning);
             }
+
+            if (!string.IsNullOrEmpty(_enhancedQueryText))
+                EditorGUILayout.LabelField($"Enhanced: {_enhancedQueryText}", _enhancedLabel);
         }
 
         void DrawResults()
@@ -207,6 +227,7 @@ namespace SemanticSearch.Editor.UI
             _isSearching = true;
             _results.Clear();
             _displayCount = PageSize;
+            _enhancedQueryText = null;
             ClearThumbnailCache();
             Repaint();
 
@@ -215,14 +236,34 @@ namespace SemanticSearch.Editor.UI
                 var sw = Stopwatch.StartNew();
                 long managedBefore = GC.GetTotalMemory(false);
                 var config = LLMApiConfig.Load();
+                var http = new LLMHttpClient(config);
+
+                string searchText = queryText;
+
+                if (_enhancedSearch)
+                {
+                    try
+                    {
+                        var chatClient = LLMClientFactory.CreateChatClient(config, http);
+                        var enhancer = new SearchQueryEnhancer(chatClient);
+                        searchText = await enhancer.EnhanceAsync(queryText);
+                        _enhancedQueryText = searchText;
+                        Repaint();
+                    }
+                    catch (Exception enhanceEx)
+                    {
+                        UnityEngine.Debug.LogWarning(
+                            $"[SemanticSearch] Query enhancement failed, using original: {enhanceEx.Message}");
+                        searchText = queryText;
+                    }
+                }
 
                 using (var db = new SemanticSearchDB())
                 {
                     db.Open();
-                    var http = new LLMHttpClient(config);
                     var embedding = LLMClientFactory.CreateEmbeddingClient(config, http);
                     var engine = new VectorSearchEngine(db, embedding);
-                    _results = await engine.SearchAsync(queryText);
+                    _results = await engine.SearchAsync(searchText);
                 }
 
                 sw.Stop();
@@ -232,6 +273,7 @@ namespace SemanticSearch.Editor.UI
                 long managedDelta = managedAfter - managedBefore;
                 UnityEngine.Debug.Log(
                     $"[SemanticSearch] Search perf: query=\"{queryText}\", " +
+                    (_enhancedSearch ? $"enhanced=\"{searchText}\", " : "") +
                     $"results={_results.Count}, elapsed={_searchTime:F3}s, " +
                     $"managedBefore={FormatUtils.FormatBytes(managedBefore)}, managedAfter={FormatUtils.FormatBytes(managedAfter)}, " +
                     $"managedDelta={FormatUtils.FormatBytes(managedDelta)}.");
