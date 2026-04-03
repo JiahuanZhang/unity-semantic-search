@@ -1,30 +1,32 @@
-# Semantic Search - Unity 语义化资产检索
+# Semantic Search - Unity Semantic Asset Retrieval
 
-通过集成大模型（Vision + Embedding），为 Unity 开发者提供自然语言资产搜索能力。支持多 Provider 配置，可同时管理多个 API 服务。支持 OpenAI 兼容格式和 Google Gemini 原生 API。
+[中文文档](README_CN.md)
 
-## 功能
+Integrate LLMs (Vision + Embedding) to provide natural-language asset search capabilities for Unity developers. Supports multiple provider configurations, allowing simultaneous management of several API services. Compatible with both OpenAI-compatible format and Google Gemini native API.
 
-- **自然语言搜索**：在搜索窗口输入描述即可定位资产
-- **多 Provider 支持**：可配置多个 LLM 服务商，一键切换
-- **管理员模式**：Admin Mode 默认关闭，状态存储在 `Library/SemanticSearch/` 目录下（项目级别、不入 Git、关闭 Unity 后保持），开启时需确认弹框；管理员可见全部配置面板（Prompt、Workflow、Filter、Database），非管理员仅可配置 LLM Provider；仅管理员下自动索引才会生效
-- **多 API 格式**：支持 OpenAI 兼容格式（阿里 DashScope、OpenAI、Ollama 等）和 Google Gemini 原生 API
-- **资产筛选规则**：支持 Include/Exclude Glob 模式，精确控制哪些资产参与索引
-- **自动索引**：资产导入时自动入库并触发索引（默认关闭，仅 Admin Mode 下生效）
-- **手动扫描**：一键扫描全项目并更新索引
-- **已索引资源浏览**：通过 `Window > Semantic Search > Asset View` 打开独立窗口，浏览所有已索引资源，支持按路径/描述搜索、按状态过滤、缩略图预览
-- **增强搜索**：Search Results 窗口提供 Enhanced 开关，开启后通过大模型优化搜索关键词（扩展为更完整的中英文描述），提高向量匹配准确度；增强失败时自动回退原始查询
-- **搜索框快速提交**：Search Results 窗口输入后按回车或失去焦点会立即触发搜索
-- **选择性重新索引**：在 Asset View 窗口中勾选资源后点击 Re-index 按钮，仅重新处理选中的资源
-- **配置面板**：通过 `Project Settings > Semantic Search` 或 `Window > Semantic Search > Settings` 管理 Provider、模型选择等
-- **提示词自定义**：可自定义 Vision 描述提示词和搜索增强提示词，留空则自动使用当前语言的默认值
-- **LLM 连通性测试**：在配置面板点击 **Test LLM**，快速验证当前 Provider 配置是否可用
-- **团队共享**：embed 数据库入库，团队成员无需重复处理
+## Features
 
-## 安装
+- **Natural Language Search**: Locate assets by typing descriptions in the search window
+- **Multi-Provider Support**: Configure multiple LLM providers and switch between them with one click
+- **Admin Mode**: Disabled by default; state is persisted under `Library/SemanticSearch/` (project-level, excluded from Git, survives Unity restarts). A confirmation dialog is shown when enabling. Admins see all configuration panels (Prompt, Workflow, Filter, Database); non-admins only see LLM Provider settings. Auto-indexing only takes effect in Admin Mode
+- **Multiple API Formats**: Supports OpenAI-compatible format (Alibaba DashScope, OpenAI, Ollama, etc.) and Google Gemini native API
+- **Asset Filter Rules**: Include/Exclude glob patterns to precisely control which assets participate in indexing
+- **Auto-Indexing**: Automatically indexes assets upon import (disabled by default, only effective in Admin Mode)
+- **Manual Scan**: One-click full-project scan and index update
+- **Indexed Asset Browser**: Open a dedicated window via `Window > Semantic Search > Asset View` to browse all indexed assets, with path/description search, status filtering, and thumbnail preview
+- **Enhanced Search**: The Search Results window provides an Enhanced toggle. When enabled, the LLM optimizes search keywords (expanding into richer bilingual descriptions) to improve vector matching accuracy; falls back to the original query on failure
+- **Quick Submit**: Pressing Enter or losing focus in the Search Results input immediately triggers a search
+- **Selective Re-indexing**: Check assets in the Asset View window and click Re-index to reprocess only selected assets
+- **Settings Panel**: Manage providers, model selection, etc. via `Project Settings > Semantic Search` or `Window > Semantic Search > Settings`
+- **Custom Prompts**: Customize Vision description prompts and search enhancement prompts; leaving them empty automatically uses the current language's defaults
+- **LLM Connectivity Test**: Click **Test LLM** in the settings panel to quickly verify the current provider configuration
+- **Team Sharing**: The embedding database is committed to version control so team members don't need to re-process assets
 
-### 方式一：本地路径引用
+## Installation
 
-在项目的 `Packages/manifest.json` 中添加：
+### Option 1: Local Path Reference
+
+Add to your project's `Packages/manifest.json`:
 
 ```json
 {
@@ -34,7 +36,7 @@
 }
 ```
 
-### 方式二：Git URL（如已推送至仓库）
+### Option 2: Git URL (if pushed to a repository)
 
 ```json
 {
@@ -44,171 +46,171 @@
 }
 ```
 
-## 要求
+## Requirements
 
 - Unity 2021.3+
-- 支持的 API Key（需支持 Vision + Embedding）
+- A supported API key (must support Vision + Embedding)
 
-## 支持的服务商（示例）
+## Supported Providers (Examples)
 
-### OpenAI 兼容格式（Provider Type: OpenAI）
+### OpenAI-Compatible Format (Provider Type: OpenAI)
 
-| 服务商 | Base URL | Vision 模型 | Embedding 模型 |
+| Provider | Base URL | Vision Model | Embedding Model |
 |---|---|---|---|
-| 阿里 DashScope | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-vl-plus` | `text-embedding-v3` |
+| Alibaba DashScope | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-vl-plus` | `text-embedding-v3` |
 | OpenAI | `https://api.openai.com/v1` | `gpt-4o` | `text-embedding-3-small` |
-| Ollama (本地) | `http://localhost:11434/v1` | `llava` | `nomic-embed-text` |
+| Ollama (local) | `http://localhost:11434/v1` | `llava` | `nomic-embed-text` |
 
-> 只要 API 遵循 OpenAI 的 `/chat/completions` 和 `/embeddings` 格式即可接入。
+> Any API following OpenAI's `/chat/completions` and `/embeddings` format can be integrated.
 
-### Google Gemini（Provider Type: Gemini）
+### Google Gemini (Provider Type: Gemini)
 
-| 服务商 | Base URL | Vision 模型 | Embedding 模型 |
+| Provider | Base URL | Vision Model | Embedding Model |
 |---|---|---|---|
 | Google Gemini | `https://generativelanguage.googleapis.com/v1beta` | `gemini-2.0-flash` | `gemini-embedding-001` |
 
-> 使用 Gemini 原生 API（`generateContent` + `embedContent`），鉴权方式为 `x-goog-api-key` header。
+> Uses the Gemini native API (`generateContent` + `embedContent`), authenticated via `x-goog-api-key` header.
 
-## 数据存储
+## Data Storage
 
-| 内容 | 路径 | 是否入库 |
+| Content | Path | Version Controlled |
 |---|---|---|
-| 用户配置（Provider 列表、端点等） | `UserSettings/SemanticSearch/Settings.json` | 否 |
-| API Key | 默认本机 EditorPrefs；勾选 Save 后写入 `UserSettings/SemanticSearch/Settings.json` | 否 |
-| Embed 索引数据库 | `ProjectSettings/SemanticSearch/Index.db` | **是** |
+| User config (provider list, endpoints, etc.) | `UserSettings/SemanticSearch/Settings.json` | No |
+| API Key | Local machine EditorPrefs by default; written to `UserSettings/SemanticSearch/Settings.json` when Save is checked | No |
+| Embedding index database | `ProjectSettings/SemanticSearch/Index.db` | **Yes** |
 
-> 不是所有团队成员都有 API Key 权限，因此配置信息不入库。已处理的 embed 数据存入 `ProjectSettings/` 目录，团队成员拉取后即可直接使用语义搜索，无需重新索引。
+> Not all team members have API key access, so configuration is not version-controlled. Processed embedding data is stored in `ProjectSettings/`, allowing team members to use semantic search immediately after pulling without re-indexing.
 
-## 配置
+## Configuration
 
-1. 打开 `Edit > Project Settings > Semantic Search`，或通过 `Window > Semantic Search > Settings`
-2. 配置 LLM Provider（所有用户均可见）：通过 **+** 按钮添加 Provider，选择 **Provider Type**，填入 Base URL、API Key、Vision Model、Embedding Model，点击 **Test LLM** 测试连通性
-3. 如需管理索引数据库，勾选 **Admin Mode**（会弹出确认对话框，需确认后方可开启；状态保存在 Library 目录，关闭 Unity 后不丢失）
-4. 开启 Admin Mode 后可见以下额外面板：
-   - **Prompt Configuration**：自定义 Vision 提示词和搜索增强提示词，留空或点击 **Reset** 恢复为当前语言默认值
-   - **Workflow Control**：开启 **Auto-Index On Import**（仅管理员模式下生效）、调整最大并发数
-   - **Asset Filter Rules**：配置 Include/Exclude Glob 规则，控制哪些资产参与索引
-   - **Database Maintenance**：**Scan & Update** / **Clear Database** / **Open Database Folder**
-5. 点击 **Open Asset View** 或通过菜单 `Window > Semantic Search > Asset View` 打开资源浏览窗口
-6. 在 Asset View 窗口中可按路径/描述搜索、按状态筛选，勾选资源后点击 **Re-index Selected** 重新生成描述和向量
+1. Open `Edit > Project Settings > Semantic Search`, or via `Window > Semantic Search > Settings`
+2. Configure LLM Provider (visible to all users): click **+** to add a provider, select **Provider Type**, fill in Base URL, API Key, Vision Model, Embedding Model, then click **Test LLM** to verify connectivity
+3. To manage the index database, enable **Admin Mode** (a confirmation dialog appears explaining this mode is intended for developers; state is saved in the Library directory and persists after closing Unity)
+4. With Admin Mode enabled, the following additional panels become visible:
+   - **Prompt Configuration**: Customize Vision and search enhancement prompts; leave empty or click **Reset** to restore the current language's defaults
+   - **Workflow Control**: Enable **Auto-Index On Import** (only effective in Admin Mode), adjust max concurrency
+   - **Asset Filter Rules**: Configure Include/Exclude glob rules to control which assets participate in indexing
+   - **Database Maintenance**: **Scan & Update** / **Clear Database** / **Open Database Folder**
+5. Click **Open Asset View** or use the menu `Window > Semantic Search > Asset View` to open the asset browser
+6. In the Asset View window, search by path/description, filter by status, check assets and click **Re-index Selected** to regenerate descriptions and vectors
 
-## 万图场景性能优化（10k+ 资产）
+## Performance Optimization for Large-Scale Assets (10k+)
 
-本版本针对大规模图片索引与检索做了专项优化，重点降低内存峰值、数据库事务开销与查询延迟。
+This version includes targeted optimizations for large-scale image indexing and retrieval, focusing on reducing peak memory usage, database transaction overhead, and query latency.
 
-### 已落地优化
+### Implemented Optimizations
 
-- **索引并发模型优化**：从“全量任务一次性展开”改为受控 worker 队列，避免 10k 任务对象同时创建导致的调度与 GC 压力。
-- **批量写库**：索引与扫描都支持批量 `Upsert`，减少单条事务提交开销。
-- **搜索链路提速**：向量数据增加内存缓存 + 快照签名失效机制；TopK 采用部分选择，减少全量排序成本。
-- **数据库查询优化**：新增 `status`、`asset_path`、`updated_at` 等索引；资产列表查询支持轻量字段与分页读取。
-- **UI 负载优化**：Asset View 过滤结果缓存；Asset View / Search Result 缩略图缓存加入上限与回收策略。
-- **MD5 扫描优化**：文件哈希增加元数据缓存（长度 + 修改时间），减少重复全文件读取。
+- **Indexing Concurrency Model**: Changed from "expand all tasks at once" to a controlled worker queue, avoiding scheduler and GC pressure from creating 10k task objects simultaneously
+- **Batch Database Writes**: Both indexing and scanning support batch `Upsert`, reducing per-record transaction commit overhead
+- **Search Pipeline Speedup**: Added in-memory cache for vector data with snapshot signature invalidation; TopK uses partial selection to reduce full-sort cost
+- **Database Query Optimization**: Added indexes on `status`, `asset_path`, `updated_at`; asset list queries support lightweight field selection and paginated reads
+- **UI Load Optimization**: Asset View filter result caching; thumbnail caches in Asset View / Search Result include size limits and eviction policies
+- **MD5 Scan Optimization**: File hash includes metadata caching (file size + modification time) to reduce redundant full-file reads
 
-### 性能观测
+### Performance Monitoring
 
-点击 `Scan & Update` 后，Console 会输出扫描与索引性能日志，例如：
+After clicking `Scan & Update`, the Console outputs scan and indexing performance logs, such as:
 
-- 扫描耗时（`scanTime`）
-- 索引耗时（`indexTime`）
-- 索引吞吐（assets/s）
-- 批处理峰值托管内存（`peakManaged`）
-- 搜索耗时与查询内存变化（`Search perf` 日志）
+- Scan duration (`scanTime`)
+- Index duration (`indexTime`)
+- Indexing throughput (assets/s)
+- Batch peak managed memory (`peakManaged`)
+- Search duration and query memory changes (`Search perf` logs)
 
-### 万图推荐参数
+### Recommended Parameters for 10k+ Assets
 
-- **Max Concurrent Requests**：建议 `2~4`（先小并发压测，再逐步调高）
-- **执行方式**：优先分目录分批次 `Scan & Update`，避免首次一次性覆盖全项目
-- **素材管理**：控制超大图比例，优先压缩纹理再做索引
-- **运行时机**：尽量在编辑器空闲时执行大批量索引任务
+- **Max Concurrent Requests**: Start with `2~4` (test with low concurrency first, then increase gradually)
+- **Execution Strategy**: Prefer scanning directories in batches via `Scan & Update`; avoid covering the entire project at once on first run
+- **Asset Management**: Limit the proportion of oversized images; compress textures before indexing
+- **Timing**: Run large batch indexing tasks when the editor is idle
 
-## 架构：资源处理器（Asset Processor）
+## Architecture: Asset Processor
 
-索引流水线采用**处理器模式**，将不同类型资源的处理逻辑分离，便于后续扩展新资源类型（如脚本、材质等）。
+The indexing pipeline uses a **processor pattern** that separates processing logic for different asset types, making it easy to extend with new types (e.g., scripts, materials).
 
-| 组件 | 职责 |
+| Component | Responsibility |
 |---|---|
-| `IAssetProcessor` | 处理器接口，定义 `Kind` / `CanProcess` / `GetAssetData` / `ProcessAsync` |
-| `AssetKind` | 枚举：`Visual`（需 Vision 描述）/ `Text`（纯文本直接 Embedding） |
-| `ImageAssetProcessor` | 处理图片资源（.png/.jpg/.jpeg/.tga），直接读取文件字节 → Vision + Embedding |
-| `PrefabAssetProcessor` | 处理预制体资源（.prefab），通过 AssetPreview 生成预览图 → Vision + Embedding |
-| `ModelAssetProcessor` | 处理 3D 模型（.fbx/.obj/.blend/.dae/.3ds/.gltf/.glb），缩略图 → Vision + Embedding |
-| `MaterialAssetProcessor` | 处理材质（.mat），材质球预览图 → Vision + Embedding |
-| `ScriptAssetProcessor` | 处理 C# 脚本（.cs），正则提取类名/方法/注释摘要 → 纯文本 Embedding |
-| `DefaultAssetProcessor` | 兜底处理器，基于文件名、路径和扩展名类型 → 纯文本 Embedding |
-| `PreviewBasedAssetProcessor` | 基于 AssetPreview 缩略图的处理器基类，供 Prefab/Model/Material 复用 |
-| `AssetProcessorRegistry` | 注册并管理所有处理器，根据文件扩展名自动路由，Default 兜底 |
-| `IndexPipeline` | 索引流水线，通过 Registry 获取对应处理器执行索引 |
+| `IAssetProcessor` | Processor interface defining `Kind` / `CanProcess` / `GetAssetData` / `ProcessAsync` |
+| `AssetKind` | Enum: `Visual` (requires Vision description) / `Text` (direct text Embedding) |
+| `ImageAssetProcessor` | Processes image assets (.png/.jpg/.jpeg/.tga), reads file bytes → Vision + Embedding |
+| `PrefabAssetProcessor` | Processes prefab assets (.prefab) via AssetPreview thumbnail → Vision + Embedding |
+| `ModelAssetProcessor` | Processes 3D models (.fbx/.obj/.blend/.dae/.3ds/.gltf/.glb), thumbnail → Vision + Embedding |
+| `MaterialAssetProcessor` | Processes materials (.mat), material ball preview → Vision + Embedding |
+| `ScriptAssetProcessor` | Processes C# scripts (.cs), regex extracts class names/methods/comments → text Embedding |
+| `DefaultAssetProcessor` | Fallback processor based on filename, path, and extension type → text Embedding |
+| `PreviewBasedAssetProcessor` | Base class for AssetPreview thumbnail-based processors, shared by Prefab/Model/Material |
+| `AssetProcessorRegistry` | Registers and manages all processors, auto-routes by file extension, Default as fallback |
+| `IndexPipeline` | Indexing pipeline that obtains the corresponding processor via Registry |
 
-### 增强搜索（Query Enhancement）
+### Enhanced Search (Query Enhancement)
 
-在 Search Results 窗口勾选 **Enhanced** 后，搜索流程变为：
+When **Enhanced** is checked in the Search Results window, the search flow becomes:
 
-1. 将用户输入的搜索关键词发送给大模型（复用 VL Model），由 LLM 识别意图并扩展为更完整的中英文描述
-2. 使用优化后的文本进行向量 Embedding 计算和匹配
-3. 搜索结果下方以蓝色斜体显示实际使用的增强文本
+1. The user's search keywords are sent to the LLM (reusing the VL Model), which identifies intent and expands them into a more complete bilingual description
+2. The optimized text is used for vector Embedding computation and matching
+3. The actual enhanced text is displayed in blue italics below the search results
 
-例如输入 "动漫头像"，LLM 会将其优化为类似 "Description: 动漫风格的角色头像，二次元卡通人物形象; An anime-style character avatar..." 的文本。若用户未指定资源类型则不限定类型，若指定了（如"红色按钮图片"）则自动添加 Asset type 约束。
+For example, entering "anime avatar" would be optimized by the LLM into something like "Description: Anime-style character avatar, 2D cartoon character portrait; 动漫风格的角色头像，二次元卡通人物形象...". If the user doesn't specify an asset type, no type constraint is added; if they do (e.g., "red button image"), an asset type constraint is automatically included.
 
-增强失败时自动回退至原始查询文本，不影响搜索。
+Falls back to the original query text on enhancement failure without affecting search.
 
-| 组件 | 职责 |
+| Component | Responsibility |
 |---|---|
-| `IChatClient` | 文本对话接口，定义 `ChatAsync(systemPrompt, userMessage)` |
-| `ChatClient` | OpenAI 兼容格式实现（`/chat/completions`） |
-| `GeminiChatClient` | Gemini 原生 API 实现（`generateContent`） |
-| `SearchQueryEnhancer` | 使用 IChatClient 将搜索关键词优化为向量检索友好的描述文本 |
+| `IChatClient` | Text chat interface defining `ChatAsync(systemPrompt, userMessage)` |
+| `ChatClient` | OpenAI-compatible format implementation (`/chat/completions`) |
+| `GeminiChatClient` | Gemini native API implementation (`generateContent`) |
+| `SearchQueryEnhancer` | Uses IChatClient to optimize search keywords into vector-retrieval-friendly descriptive text |
 
-### 向量化文本增强（文件名上下文）
+### Vectorization Text Enhancement (Filename Context)
 
-为降低视觉识别误差，图片与预制体在索引时会将**文件名**作为辅助上下文注入：
+To reduce visual recognition errors, images and prefabs inject the **filename** as auxiliary context during indexing:
 
-- Vision 阶段：在提示词中追加文件名提示（辅助信息，不覆盖视觉内容）
-- Embedding 阶段：将 `asset_type + file_name + caption` 组合后再生成向量
+- Vision phase: Appends filename hints to the prompt (supplementary info, does not override visual content)
+- Embedding phase: Combines `asset_type + file_name + caption` before generating the vector
 
-这样可提升命名语义较强资源（如角色、道具、UI 组件）在检索中的稳定性与召回率。
+This improves retrieval stability and recall for assets with semantically meaningful names (e.g., characters, props, UI components).
 
-### 已支持的资源类型
+### Supported Asset Types
 
-| 类型 | 扩展名 | 索引策略 |
+| Type | Extensions | Indexing Strategy |
 |---|---|---|
-| 图片 | .png, .jpg, .jpeg, .tga | Vision 描述 + Embedding |
-| 预制体 | .prefab | AssetPreview 缩略图 → Vision + Embedding |
-| 3D 模型 | .fbx, .obj, .blend, .dae, .3ds, .gltf, .glb | AssetPreview 缩略图 → Vision + Embedding |
-| 材质 | .mat | AssetPreview 材质球预览 → Vision + Embedding |
-| C# 脚本 | .cs | 正则提取类名/方法签名/注释 → 纯文本 Embedding |
-| 其他资源 | 任意 | DefaultAssetProcessor 兜底：文件名 + 路径 + 类型 → 纯文本 Embedding |
+| Image | .png, .jpg, .jpeg, .tga | Vision description + Embedding |
+| Prefab | .prefab | AssetPreview thumbnail → Vision + Embedding |
+| 3D Model | .fbx, .obj, .blend, .dae, .3ds, .gltf, .glb | AssetPreview thumbnail → Vision + Embedding |
+| Material | .mat | AssetPreview material ball preview → Vision + Embedding |
+| C# Script | .cs | Regex extracts class names/method signatures/comments → text Embedding |
+| Other | any | DefaultAssetProcessor fallback: filename + path + type → text Embedding |
 
-扩展新资源类型只需：
-1. 实现 `IAssetProcessor` 接口（或继承 `PreviewBasedAssetProcessor`）
-2. 在 `AssetProcessorRegistry` 构造函数中注册（DefaultAssetProcessor 之前）
-3. 在 `AssetScanner.ExtensionToAssetType` 中添加扩展名映射
+To extend with a new asset type:
+1. Implement the `IAssetProcessor` interface (or inherit from `PreviewBasedAssetProcessor`)
+2. Register in the `AssetProcessorRegistry` constructor (before DefaultAssetProcessor)
+3. Add extension mapping in `AssetScanner.ExtensionToAssetType`
 
-## 多语言支持
+## Localization
 
-插件根据操作系统语言自动切换界面语言，支持以下语言：
+The plugin automatically switches the UI language based on the operating system language. Supported languages:
 
-| 语言 | 系统语言 |
+| Language | System Language |
 |---|---|
-| 简体中文 | `Chinese` / `ChineseSimplified` / `ChineseTraditional` |
-| English | 其他所有语言（默认回退） |
-| 日本語 | `Japanese` |
+| Simplified Chinese | `Chinese` / `ChineseSimplified` / `ChineseTraditional` |
+| English | All other languages (default fallback) |
+| Japanese | `Japanese` |
 
-多语言覆盖范围：
-- **UI 界面**：所有窗口标题、按钮标签、状态提示、弹窗文本、设置面板等
-- **LLM 提示词**：Vision 描述提示词、搜索增强系统提示词均根据语言适配
-- **不涉及**：代码注释、日志输出、MenuItem 路径
+Localization coverage:
+- **UI**: All window titles, button labels, status messages, dialog text, settings panels, etc.
+- **LLM Prompts**: Vision description prompts and search enhancement system prompts adapt to the current language
+- **Not covered**: Code comments, log output, MenuItem paths
 
-语言检测基于 `Application.systemLanguage`，在静态构造时确定，运行期间不变。本地化核心类为 `Editor/Core/Localization/L10n.cs`。
+Language detection is based on `Application.systemLanguage`, determined at static construction time and immutable during runtime. The core localization class is `Editor/Core/Localization/L10n.cs`.
 
-## 最近修复
+## Recent Fixes
 
-- 修复索引进行中操作 UI 导致编辑器卡住的问题：添加 `PRAGMA busy_timeout` 避免 SQLite 锁冲突立即阻塞；`EnsureSchema` 改为仅首次执行以消除不必要的 DDL 写争用；全面排查所有 DB 调用点，将 `RefreshAssetList`、`RefreshCounts`、`ClearDatabase`、`DeleteSelected` 改为异步，搜索引擎的 `GetCachedVectors`/`GetAssetSummariesByGuids` 移至后台线程，`OnPostprocessAllAssets` 的 DB 写操作通过 `delayCall` + `Task.Run` 延迟到后台执行，确保主线程不被 DB 操作阻塞。
-- 预制体条目在 Asset View 和 Search Results 中默认显示 3D 缩略图（`AssetPreview.GetAssetPreview`），异步加载期间先显示类型图标再自动刷新，性能无阻塞。
-- `Semantic Search Results` 窗口中，匹配度百分比调整为显示在文件名同一行右侧，结果信息更易扫读。
-- 修复 `Semantic Search Results` 窗口保持打开时，`Open Asset View` 偶发打开慢且列表为空的问题。
-- 调整搜索窗口数据库连接策略为“每次搜索按需打开并在结束后释放”，减少窗口之间的连接竞争。
-- `Asset View` 刷新失败时不再静默显示空列表，会在窗口内显示失败信息并输出错误日志，便于定位问题。
-- 优化万图场景索引链路：受控并发队列 + 批量写库 + 性能指标日志，降低峰值内存并提升吞吐。
-- 优化万图场景搜索链路：向量缓存 + TopK 部分选择 + 轻量元数据回填，降低查询延迟。
-- 优化万图场景扫描与 UI：MD5 缓存、数据库索引、列表过滤与缩略图缓存回收，提升交互稳定性。
+- Fixed editor freezing when operating UI during indexing: Added `PRAGMA busy_timeout` to avoid immediate SQLite lock conflicts; `EnsureSchema` now runs only once to eliminate unnecessary DDL write contention; all DB call sites audited — `RefreshAssetList`, `RefreshCounts`, `ClearDatabase`, `DeleteSelected` converted to async; search engine's `GetCachedVectors`/`GetAssetSummariesByGuids` moved to background thread; `OnPostprocessAllAssets` DB writes deferred via `delayCall` + `Task.Run`, ensuring the main thread is never blocked by DB operations
+- Prefab entries in Asset View and Search Results now display 3D thumbnails by default (`AssetPreview.GetAssetPreview`), showing a type icon during async loading then auto-refreshing, with no performance blocking
+- In the Semantic Search Results window, the match percentage is now displayed on the same line as the filename (right-aligned) for better readability
+- Fixed occasional slow opening and empty list when opening Asset View while the Semantic Search Results window is already open
+- Adjusted the search window's database connection strategy to "open on demand per search and release after completion", reducing connection contention between windows
+- Asset View now shows failure information in the window and outputs error logs on refresh failure, instead of silently displaying an empty list
+- Optimized 10k+ asset indexing pipeline: controlled concurrency queue + batch writes + performance metric logging, reducing peak memory and improving throughput
+- Optimized 10k+ asset search pipeline: vector caching + TopK partial selection + lightweight metadata backfill, reducing query latency
+- Optimized 10k+ asset scanning and UI: MD5 caching, database indexes, list filtering and thumbnail cache eviction, improving interaction stability
