@@ -45,9 +45,45 @@ namespace SemanticSearch.Editor.UI
             }
         }
 
+        static string AdminModePath
+        {
+            get
+            {
+                var projectRoot = Path.GetDirectoryName(Application.dataPath);
+                return Path.Combine(projectRoot, "Library", "SemanticSearch", "AdminMode");
+            }
+        }
+
         static string ProjectHash => Application.dataPath.GetHashCode().ToString("X8");
 
         static string ApiKeyPrefsPrefix => $"SemanticSearch_{ProjectHash}_Provider_";
+
+        public bool AdminMode
+        {
+            get => File.Exists(AdminModePath);
+            set
+            {
+                try
+                {
+                    if (value)
+                    {
+                        var dir = Path.GetDirectoryName(AdminModePath);
+                        if (!Directory.Exists(dir))
+                            Directory.CreateDirectory(dir);
+                        File.WriteAllText(AdminModePath, "1");
+                    }
+                    else
+                    {
+                        if (File.Exists(AdminModePath))
+                            File.Delete(AdminModePath);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[SemanticSearch] Failed to update AdminMode: {e.Message}");
+                }
+            }
+        }
 
         public static SemanticSearchSettings Load()
         {

@@ -77,19 +77,50 @@ namespace SemanticSearch.Editor.UI
 
             using (new EditorGUI.IndentLevelScope())
             {
+                DrawAdminModeToggle();
+                EditorGUILayout.Space(4);
                 DrawLLMConfiguration();
-                EditorGUILayout.Space(4);
-                DrawPromptConfiguration();
-                EditorGUILayout.Space(4);
-                DrawWorkflowControl();
-                EditorGUILayout.Space(4);
-                DrawAssetFilterRules();
-                EditorGUILayout.Space(4);
-                DrawDatabaseMaintenance();
+
+                if (_settings.AdminMode)
+                {
+                    EditorGUILayout.Space(4);
+                    DrawPromptConfiguration();
+                    EditorGUILayout.Space(4);
+                    DrawWorkflowControl();
+                    EditorGUILayout.Space(4);
+                    DrawAssetFilterRules();
+                    EditorGUILayout.Space(4);
+                    DrawDatabaseMaintenance();
+                }
             }
 
             EditorGUILayout.Space(8);
             DrawAssetViewShortcut();
+        }
+
+        void DrawAdminModeToggle()
+        {
+            EditorGUI.BeginChangeCheck();
+            var newValue = EditorGUILayout.Toggle(
+                new GUIContent(L10n.AdminMode, L10n.AdminModeTooltip),
+                _settings.AdminMode);
+            if (EditorGUI.EndChangeCheck() && newValue != _settings.AdminMode)
+            {
+                if (newValue)
+                {
+                    if (EditorUtility.DisplayDialog(
+                            L10n.AdminModeConfirmTitle,
+                            L10n.AdminModeConfirmMessage,
+                            L10n.Confirm, L10n.Cancel))
+                    {
+                        _settings.AdminMode = true;
+                    }
+                }
+                else
+                {
+                    _settings.AdminMode = false;
+                }
+            }
         }
 
         void DrawLLMConfiguration()

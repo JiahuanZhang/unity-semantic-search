@@ -6,17 +6,17 @@
 
 - **自然语言搜索**：在搜索窗口输入描述即可定位资产
 - **多 Provider 支持**：可配置多个 LLM 服务商，一键切换
-- **管理员模式**：区分管理员与普通用户角色，各自绑定独立的 LLM Provider；管理员可见 Workflow Control 和 Database Maintenance 面板
+- **管理员模式**：Admin Mode 默认关闭，状态存储在 `Library/SemanticSearch/` 目录下（项目级别、不入 Git、关闭 Unity 后保持），开启时需确认弹框；管理员可见全部配置面板（Prompt、Workflow、Filter、Database），非管理员仅可配置 LLM Provider；仅管理员下自动索引才会生效
 - **多 API 格式**：支持 OpenAI 兼容格式（阿里 DashScope、OpenAI、Ollama 等）和 Google Gemini 原生 API
-- **资产筛选规则**：支持 Include/Exclude Glob 模式，精确控制哪些资产参与索引（Admin 模式下配置）
-- **自动索引**：资产导入时自动入库并触发索引（默认关闭）
+- **资产筛选规则**：支持 Include/Exclude Glob 模式，精确控制哪些资产参与索引
+- **自动索引**：资产导入时自动入库并触发索引（默认关闭，仅 Admin Mode 下生效）
 - **手动扫描**：一键扫描全项目并更新索引
 - **已索引资源浏览**：通过 `Window > Semantic Search > Asset View` 打开独立窗口，浏览所有已索引资源，支持按路径/描述搜索、按状态过滤、缩略图预览
 - **增强搜索**：Search Results 窗口提供 Enhanced 开关，开启后通过大模型优化搜索关键词（扩展为更完整的中英文描述），提高向量匹配准确度；增强失败时自动回退原始查询
 - **搜索框快速提交**：Search Results 窗口输入后按回车或失去焦点会立即触发搜索
 - **选择性重新索引**：在 Asset View 窗口中勾选资源后点击 Re-index 按钮，仅重新处理选中的资源
 - **配置面板**：通过 `Project Settings > Semantic Search` 或 `Window > Semantic Search > Settings` 管理 Provider、模型选择等
-- **提示词自定义**：管理员模式下可自定义 Vision 描述提示词和搜索增强提示词，留空则自动使用当前语言的默认值
+- **提示词自定义**：可自定义 Vision 描述提示词和搜索增强提示词，留空则自动使用当前语言的默认值
 - **LLM 连通性测试**：在配置面板点击 **Test LLM**，快速验证当前 Provider 配置是否可用
 - **团队共享**：embed 数据库入库，团队成员无需重复处理
 
@@ -82,21 +82,15 @@
 ## 配置
 
 1. 打开 `Edit > Project Settings > Semantic Search`，或通过 `Window > Semantic Search > Settings`
-2. 勾选 **Admin Mode** 进入管理员模式（可查看 Workflow Control 和 Database Maintenance）
-3. 通过 **+** 按钮添加 Provider，或编辑默认 Provider
-4. 选择 **Provider Type**（OpenAI 或 Gemini），切换时会自动填充默认值
-5. 填入 Base URL、API Key、Vision Model、Embedding Model；如需将 API Key 写入 `Settings.json`，勾选 API Key 输入框右侧 **Save**（默认不勾选）
-6. 点击 **Test LLM** 测试当前 Provider 连通性（基于 Embedding 请求）
-7. 在 **Role Provider Assignment** 中为管理员和普通用户分别指定使用的 Provider
-8. 在 **Prompt Configuration** 中可自定义 Vision 提示词和搜索增强提示词，留空或点击 **Reset** 即恢复为当前系统语言的默认值
-9. 如需自动索引，开启 **Auto-Index On Import**（默认关闭，开启后新导入资产会自动从 Pending 进入 Indexed）
-9. 在 **Asset Filter Rules** 中配置包含/排除规则，控制哪些资产参与 Embedding：
-   - **Include Rules**：资产路径须匹配至少一条规则才会被索引，默认 `Assets/**`（全部包含）
-   - **Exclude Rules**：匹配的资产将被排除（优先级高于 Include）
-   - 支持 Glob 模式：`**`（递归匹配）、`*`（单层匹配），例如 `Assets/UI/**`、`*.png`、`Assets/Temp/**`
-10. 点击 **Scan & Update** 开始索引
-9. 点击 **Open Asset View** 或通过菜单 `Window > Semantic Search > Asset View` 打开资源浏览窗口
-10. 在 Asset View 窗口中可按路径/描述搜索、按状态筛选，勾选资源后点击 **Re-index Selected** 重新生成描述和向量
+2. 配置 LLM Provider（所有用户均可见）：通过 **+** 按钮添加 Provider，选择 **Provider Type**，填入 Base URL、API Key、Vision Model、Embedding Model，点击 **Test LLM** 测试连通性
+3. 如需管理索引数据库，勾选 **Admin Mode**（会弹出确认对话框，需确认后方可开启；状态保存在 Library 目录，关闭 Unity 后不丢失）
+4. 开启 Admin Mode 后可见以下额外面板：
+   - **Prompt Configuration**：自定义 Vision 提示词和搜索增强提示词，留空或点击 **Reset** 恢复为当前语言默认值
+   - **Workflow Control**：开启 **Auto-Index On Import**（仅管理员模式下生效）、调整最大并发数
+   - **Asset Filter Rules**：配置 Include/Exclude Glob 规则，控制哪些资产参与索引
+   - **Database Maintenance**：**Scan & Update** / **Clear Database** / **Open Database Folder**
+5. 点击 **Open Asset View** 或通过菜单 `Window > Semantic Search > Asset View` 打开资源浏览窗口
+6. 在 Asset View 窗口中可按路径/描述搜索、按状态筛选，勾选资源后点击 **Re-index Selected** 重新生成描述和向量
 
 ## 万图场景性能优化（10k+ 资产）
 

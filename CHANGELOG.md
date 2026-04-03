@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.8] - 2026-04-03
+
+### Added
+
+- 恢复管理员模式开关（Admin Mode），默认关闭
+- Admin Mode 状态持久化到 `Library/SemanticSearch/AdminMode`，仅当前项目生效、不会上传 Git、关闭 Unity 后保持
+- 非管理员设置面板仅显示 LLM Configuration；管理员可见 Prompt、Workflow、Filter、Database 全部面板
+- 从非管理员切换到管理员时弹出确认对话框，告知该模式面向开发者并说明影响范围
+- 仅管理员身份下资源导入时自动索引（`AutoIndexOnImport`）才会生效
+
 ## [0.1.7] - 2026-03-19
 
 ### Changed

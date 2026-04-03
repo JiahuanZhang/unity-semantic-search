@@ -18,6 +18,7 @@ namespace SemanticSearch.Editor.Core.Watcher
         private static bool _autoIndexRerunRequested;
 
         private static bool IsAutoIndexEnabled =>
+            SemanticSearchSettings.Instance.AdminMode &&
             SemanticSearchSettings.Instance.AutoIndexOnImport;
 
         private static bool ShouldProcess(string path)

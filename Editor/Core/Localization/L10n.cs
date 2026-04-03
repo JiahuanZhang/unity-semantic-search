@@ -67,6 +67,33 @@ namespace SemanticSearch.Editor.Core.Localization
         public static string EnhancedQuery(string query) =>
             string.Format(S("Enhanced: {0}", "增强: {0}", "拡張: {0}"), query);
 
+        // ===== Settings — Admin Mode =====
+        public static string AdminMode => S("Admin Mode", "管理员模式", "管理者モード");
+        public static string AdminModeTooltip => S(
+            "Admin Mode controls access to Workflow, Database, Prompt, and Filter settings. Non-admin users can only configure LLM providers.",
+            "管理员模式控制工作流、数据库、提示词和过滤规则等高级配置的访问权限。非管理员仅可配置 LLM 供应商。",
+            "管理者モードはワークフロー、データベース、プロンプト、フィルター設定へのアクセスを制御します。非管理者はLLMプロバイダーのみ設定可能です。");
+        public static string AdminModeConfirmTitle => S("Enable Admin Mode", "启用管理员模式", "管理者モードを有効にする");
+        public static string AdminModeConfirmMessage => S(
+            "Admin Mode is intended for developers who manage the index database.\n\n"
+            + "Enabling this mode will allow:\n"
+            + "• Auto-indexing on asset import (writes to the shared database)\n"
+            + "• Manual scan, re-index, and database clear operations\n"
+            + "• Prompt and asset filter configuration\n\n"
+            + "Please confirm you understand these operations before proceeding.",
+            "管理员模式面向负责管理索引数据库的开发者。\n\n"
+            + "开启后将允许：\n"
+            + "• 资源导入时自动索引（会写入共享数据库）\n"
+            + "• 手动扫描、重新索引、清空数据库等操作\n"
+            + "• 提示词和资产过滤规则配置\n\n"
+            + "请确认你了解上述操作的影响后再继续。",
+            "管理者モードはインデックスデータベースを管理する開発者向けです。\n\n"
+            + "有効にすると以下が許可されます：\n"
+            + "• アセットインポート時の自動インデックス（共有データベースへの書き込み）\n"
+            + "• 手動スキャン、再インデックス、データベースクリア操作\n"
+            + "• プロンプトとアセットフィルター設定\n\n"
+            + "これらの操作を理解した上で続行してください。");
+
         // ===== Settings — LLM Configuration =====
         public static string LLMConfiguration => S("LLM Configuration", "LLM 配置", "LLM 設定");
         public static string ActiveProvider => S("Active Provider", "当前供应商", "アクティブプロバイダー");
