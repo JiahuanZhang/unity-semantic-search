@@ -21,6 +21,14 @@ Integrate LLMs (Vision + Embedding) to provide natural-language asset search cap
 - An API Key supporting **Vision + Embedding** (e.g., GPT-4o + Text-Embedding-3, Gemini 1.5/2.0 Flash).
 
 ### Installation
+#### Option 1: Via Unity Package Manager (Recommended)
+1. Open the Package Manager window (`Window > Package Manager`).
+2. Click the `+` button in the top-left corner.
+3. Select `Add package from git URL...`.
+4. Enter the following URL:
+   `https://github.com/JiahuanZhang/unity-semantic-search.git`
+
+#### Option 2: Edit `manifest.json`
 Add the following to your `Packages/manifest.json`:
 ```json
 "com.vectorz.semantic-search": "https://github.com/JiahuanZhang/unity-semantic-search.git"

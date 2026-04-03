@@ -21,6 +21,14 @@
 - 具备 **Vision + Embedding** 能力的 API Key（如 GPT-4o + Text-Embedding-3, Gemini 1.5/2.0 Flash）。
 
 ### 安装方法
+#### 方法 1：通过 Unity Package Manager (推荐)
+1. 打开 Package Manager 窗口 (`Window > Package Manager`)。
+2. 点击左上角的 `+` 按钮。
+3. 选择 `Add package from git URL...`。
+4. 输入以下 URL：
+   `https://github.com/JiahuanZhang/unity-semantic-search.git`
+
+#### 方法 2：编辑 `manifest.json`
 在项目的 `Packages/manifest.json` 中添加：
 ```json
 "com.vectorz.semantic-search": "https://github.com/JiahuanZhang/unity-semantic-search.git"
